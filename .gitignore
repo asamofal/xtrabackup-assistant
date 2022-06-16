@@ -1,5 +1,5 @@
 /*
 
 !.gitignore
-!dump.py
+!xtrabackup-assistant.py
 !requirements.txt
