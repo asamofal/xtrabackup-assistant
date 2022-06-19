@@ -23,7 +23,7 @@ def parse_command():
 
 
 def main():
-    print(f"{Color.GREEN}{Style.BRIGHT}Percona XtraBackup assistant v{VERSION}{Style.RESET_ALL}{Color.RESET}")
+    print(f"{Color.GREEN}{Style.BRIGHT}Percona XtraBackup assistant [v{ VERSION}]{Style.RESET_ALL}{Color.RESET}")
 
     match command:
         case 'create':
