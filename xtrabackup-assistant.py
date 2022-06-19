@@ -25,11 +25,7 @@ def parse_command():
 def main():
     print(f"{Color.GREEN}{Style.BRIGHT}Percona XtraBackup assistant [v{ VERSION}]{Style.RESET_ALL}{Color.RESET}")
 
-    match command:
-        case 'create':
-            print('create')
-        case 'import':
-            print('restore')
+    print(command)
 
 
 if __name__ == '__main__':
