@@ -3,3 +3,4 @@
 !.gitignore
 !xtrabackup-assistant.py
 !requirements.txt
+!venv
