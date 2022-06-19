@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+import sys
 from argparse import ArgumentParser
 from colorama import Fore as Color, Style, init as colorama_init
 
 NAME = 'Percona XtraBackup assistant'
 VERSION = 0.1
+MIN_PYTHON_VERSION = (3, 10, 4)
 AUTHOR = 'Anton Samofal'
 
 
@@ -31,6 +33,9 @@ def main():
 
 
 if __name__ == '__main__':
+    if sys.version_info < MIN_PYTHON_VERSION:
+        sys.exit(f"{Color.RED}Python %s.%s.%s or newer is required.{Color.RESET}" % MIN_PYTHON_VERSION)
+
     # init colorama module
     colorama_init(autoreset=True)
 
@@ -40,4 +45,4 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print('')
-        exit(0)
+        sys.exit(0)
