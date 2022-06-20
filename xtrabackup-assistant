@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+import re
+from argparse import ArgumentParser
+from colorama import Fore as Color, Style, init as init_colorama
+
+NAME = 'Percona XtraBackup Assistant'
+VERSION = 0.1
+MIN_PYTHON_VERSION = (3, 9)
+AUTHOR = 'Anton Samofal'
+
+
+def main():
+    try:
+        env = Environment()
+        env.print_info()
+    except RuntimeError as error:
+        sys.exit(f"{Color.RED}{Style.BRIGHT}Error{Style.NORMAL}: {error}{Color.RESET}")
+
+
+class Environment:
+    def __init__(self):
+        self.mysql_version = self._get_mysql_server_version()
+        self.xtrabackup_version = self._get_xtrabackup_version()
+
+    def print_info(self):
+        tool_versions = [
+            f"{Color.GREEN}Percona MySQL Server {self.mysql_version}{Color.RESET}",
+            f"{Color.GREEN}Percona XtraBackup {self.xtrabackup_version}{Color.RESET}"
+        ]
+        print(f"{Color.BLUE}Environment:{Color.RESET}", ' | '.join(tool_versions))
+
+    @staticmethod
+    def _get_mysql_server_version() -> str:
+        try:
+            command = subprocess.run(['mysql', '--version'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            mysql_server_about = command.stdout.decode('utf-8')
+            mysql_server_version_match = re.search(r'Ver (\S+) for Linux', mysql_server_about)
+            if mysql_server_version_match is None:
+                raise RuntimeError('Percona MySQL Server version is not recognized!')
+        except FileNotFoundError:
+            raise RuntimeError('Percona MySQL Server is missing!')
+
+        return mysql_server_version_match.group(1)
+
+    @staticmethod
+    def _get_xtrabackup_version() -> str:
+        try:
+            command = subprocess.run(['xtrabackup', '--version'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            xtrabackup_about = command.stdout.decode('utf-8')
+            xtrabackup_version_match = re.search(r'xtrabackup version (\S+) based on MySQL server', xtrabackup_about)
+            if xtrabackup_version_match is None:
+                raise RuntimeError('Xtrabackup tool version is not recognized!')
+        except FileNotFoundError:
+            raise RuntimeError('Xtrabackup tool is missing!')
+
+        return xtrabackup_version_match.group(1)
+
+
+def parse_command():
+    """Parse arguments from a command line"""
+    parser = ArgumentParser(description=f"{NAME} v{VERSION}")
+    parser.add_argument('--version', action='version', version=f"{NAME} v{VERSION}")
+
+    subparsers = parser.add_subparsers(title='Available commands', required=True, dest='command')
+    subparsers.add_parser('create', help='create database dump')
+    subparsers.add_parser('restore', help='restore database dump')
+
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    if sys.version_info < MIN_PYTHON_VERSION:
+        sys.exit(f"{Color.RED}Python %s.%s or newer is required.{Color.RESET}" % MIN_PYTHON_VERSION)
+
+    # init colorama module
+    init_colorama(autoreset=True)
+
+    # command = parse_command()
+
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('')
+        sys.exit(0)
