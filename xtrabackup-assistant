@@ -65,20 +65,22 @@ def parse_command():
     parser.add_argument('--version', action='version', version=f"{NAME} v{VERSION}")
 
     subparsers = parser.add_subparsers(title='Available commands', required=True, dest='command')
-    subparsers.add_parser('create', help='create database dump')
-    subparsers.add_parser('restore', help='restore database dump')
+    subparsers.add_parser(Command.CREATE.value, help='create database dump')
+    subparsers.add_parser(Command.RESTORE.value, help='restore database dump')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    return Command(args.command)
 
 
 if __name__ == '__main__':
-    if sys.version_info < MIN_PYTHON_VERSION:
-        sys.exit(f"{Color.RED}Python %s.%s or newer is required.{Color.RESET}" % MIN_PYTHON_VERSION)
-
     # init colorama module
     init_colorama(autoreset=True)
 
-    # command = parse_command()
+    if sys.version_info < MIN_PYTHON_VERSION:
+        sys.exit(f"{Color.RED}Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
+
+    assistant_command = parse_command()
 
     try:
         main()
