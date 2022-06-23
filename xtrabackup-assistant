@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+
 import os
-from datetime import date
 import enum
+import shutil
 import sys
 import subprocess as sp
 import re
+from datetime import datetime
 from argparse import ArgumentParser
 from colorama import Fore as Color, Style, init as init_colorama
 
@@ -12,6 +14,9 @@ NAME = 'Percona XtraBackup Assistant'
 VERSION = 0.1
 MIN_PYTHON_VERSION = (3, 9)
 AUTHOR = 'Anton Samofal'
+
+# CONFIG
+BACKUPS_PATH = '/backups'
 
 
 def main():
@@ -26,7 +31,7 @@ def main():
             assistant.restore()
 
     except RuntimeError as error:
-        sys.exit(f"{Color.RED}{Style.BRIGHT}Error{Style.NORMAL}: {error}")
+        sys.exit(f"{Color.RED}[Error] {error}")
 
 
 class Environment:
@@ -74,10 +79,18 @@ class Assistant:
 
     def create(self) -> None:
         mysql_version = self._env.mysql_version
-        backup_name = f"{date.today()}_inside_full_{mysql_version}.xbstream"
-        backup_path = f"/backups/{backup_name}"
+        date = datetime.now().strftime('%Y-%m-%d')
 
-        with open(backup_path, 'wb') as backup_file:
+        backup_dir_path = f"{BACKUPS_PATH}/{date}"
+        if not os.path.exists(backup_dir_path):
+            os.makedirs(backup_dir_path)
+
+        date_time = datetime.now().strftime('%Y-%m-%d_%H-%M')
+        backup_file_name = f"{date_time}_inside_full_{mysql_version}.xbstream"
+        backup_file_path = f"{backup_dir_path}/{backup_file_name}"
+        log_path = f"{backup_dir_path}/xtrabackup.log"
+
+        with open(backup_file_path, 'wb') as backup_file, open(log_path, 'w') as log_file:
             command_options = [
                 '--backup',
                 '--stream=xbstream',
@@ -91,14 +104,38 @@ class Assistant:
             ]
             command = sp.Popen(['xtrabackup', *command_options], stdout=backup_file, stderr=sp.PIPE)
             for line in command.stderr:
-                print(f"{Color.BLUE}[ExtraBackup]{Color.RESET}", str(line))
+                message = XtrabackupMessage(str(line, 'utf-8'))
+                # log_file.write(line)
+                print(f"{Color.BLUE}[ExtraBackup]{Color.RESET} {message.formatted}")
 
             return_code = command.wait()
-            if return_code is not 0:
-                os.remove(backup_path)
+            if return_code != 0:
+                # TODO: move xtrabackup.log to /var/log/xtrabackup-assistant
+                shutil.rmtree(backup_dir_path)
+                raise RuntimeError('Failed to create backup! Details in ...')
 
-    def restore(self) -> None:
+        print(f"{Color.GREEN}Backup successfully created: {backup_file_path}")
+
+    @staticmethod
+    def restore() -> None:
         print('restoring....')
+
+
+class XtrabackupMessage:
+    def __init__(self, message: str):
+        self._original = message
+        self.formatted = self._format()
+
+    def _format(self) -> str:
+        message = self._original.split()
+
+        # format the first column if this is ISO 8601 date
+        try:
+            message[0] = f"[{datetime.fromisoformat(message[0]).strftime('%Y-%m-%d %H:%M:%S')}]"
+        except ValueError:
+            pass
+
+        return ' '.join(message)
 
 
 class Command(enum.Enum):
@@ -132,5 +169,5 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
-        print('')
+        print(f'{Color.BLUE}Terminating...')
         sys.exit(0)
