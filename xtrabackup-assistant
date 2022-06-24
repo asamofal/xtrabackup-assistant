@@ -112,7 +112,7 @@ class Assistant:
             if return_code != 0:
                 # TODO: move xtrabackup.log to /var/log/xtrabackup-assistant
                 shutil.rmtree(backup_dir_path)
-                raise RuntimeError('Failed to create backup! Details in ...')
+                raise RuntimeError('Failed to create a backup! Details in ...')
 
         print(f"{Color.GREEN}Backup successfully created: {backup_file_path}")
 
