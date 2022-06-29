@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-import os
 import enum
-import shutil
-import sys
-import subprocess as sp
 import re
-from datetime import datetime
+import shutil
+import subprocess as sp
+import sys
 from argparse import ArgumentParser
-from colorama import Fore as Color, Style, init as init_colorama
+from datetime import datetime
+
+from colorama import Fore as Color, init as init_colorama
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = 0.1
@@ -80,17 +80,17 @@ class Assistant:
     def create(self) -> None:
         mysql_version = self._env.mysql_version
         date = datetime.now().strftime('%Y-%m-%d')
-
-        backup_dir_path = f"{BACKUPS_PATH}/{date}"
-        if not os.path.exists(backup_dir_path):
-            os.makedirs(backup_dir_path)
-
         date_time = datetime.now().strftime('%Y-%m-%d_%H-%M')
-        backup_file_name = f"{date_time}_inside_full_{mysql_version}.xbstream"
-        backup_file_path = f"{backup_dir_path}/{backup_file_name}"
-        log_path = f"{backup_dir_path}/xtrabackup.log"
 
-        with open(backup_file_path, 'wb') as backup_file, open(log_path, 'w') as log_file:
+        # backup_dir_path = f"{BACKUPS_PATH}/{date}"
+        # if not os.path.exists(backup_dir_path):
+        #     os.makedirs(backup_dir_path)
+
+        backup_file_name = f"{date_time}_inside_full_{mysql_version}.xbstream"
+        temp_backup_file_path = f"/tmp/{backup_file_name}"
+        temp_log_path = '/tmp/xtrabackup.log'
+
+        with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'a') as log_file:
             command_options = [
                 '--backup',
                 '--stream=xbstream',
@@ -105,16 +105,20 @@ class Assistant:
             command = sp.Popen(['xtrabackup', *command_options], stdout=backup_file, stderr=sp.PIPE)
             for line in command.stderr:
                 message = XtrabackupMessage(str(line, 'utf-8'))
-                # log_file.write(line)
+
+                log_file.write(message.formatted)
                 print(f"{Color.BLUE}[ExtraBackup]{Color.RESET} {message.formatted}")
 
             return_code = command.wait()
-            if return_code != 0:
-                # TODO: move xtrabackup.log to /var/log/xtrabackup-assistant
-                shutil.rmtree(backup_dir_path)
-                raise RuntimeError('Failed to create a backup! Details in ...')
 
-        print(f"{Color.GREEN}Backup successfully created: {backup_file_path}")
+        if return_code != 0:
+            log_path = f"/var/log/xtrabackup/{datetime}-error.log"
+            shutil.move(temp_log_path, log_path)
+
+            shutil.rmtree('/tmp')
+            raise RuntimeError(f"Failed to create a backup! Error log: {log_path}")
+
+        print(f"{Color.GREEN}Backup successfully created: {temp_backup_file_path}")
 
     @staticmethod
     def restore() -> None:
@@ -123,17 +127,21 @@ class Assistant:
 
 class XtrabackupMessage:
     def __init__(self, message: str):
-        self._original = message
+        self.original = message
         self.formatted = self._format()
 
     def _format(self) -> str:
-        message = self._original.split()
+        message = self.original.split()
 
-        # format the first column if this is ISO 8601 date
+        # format timestamp if this is ISO 8601 date at start
         try:
             message[0] = f"[{datetime.fromisoformat(message[0]).strftime('%Y-%m-%d %H:%M:%S')}]"
         except ValueError:
-            pass
+            # format timestamp if it's 'version_check' utility date at start
+            version_check_timestamp = re.match(r'\d{6} \d{2}:\d{2}:\d{2}', self.original)
+            if version_check_timestamp is not None:
+                timestamp = datetime.strptime(version_check_timestamp.group(), '%y%m%d %H:%M:%S')
+                message[0:2] = [f"[{timestamp.strftime('%Y-%m-%d %H:%M:%S')}]"]
 
         return ' '.join(message)
 
@@ -169,5 +177,8 @@ if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
+        shutil.rmtree('/tmp')
+
         print(f'{Color.BLUE}Terminating...')
+
         sys.exit(0)
