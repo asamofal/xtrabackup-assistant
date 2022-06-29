@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import enum
+import os
 import re
 import shutil
 import subprocess as sp
@@ -17,17 +18,23 @@ AUTHOR = 'Anton Samofal'
 
 # CONFIG
 BACKUPS_PATH = '/backups'
+TEMP_DIR_PATH = '/tmp/xtrabackup'
 
 
-def main():
+class Command(enum.Enum):
+    CREATE = 'create'
+    RESTORE = 'restore'
+
+
+def main(command: Command):
     try:
         env = Environment()
         env.print_info()
 
         assistant = Assistant(env)
-        if assistant_command is Command.CREATE:
+        if command is Command.CREATE:
             assistant.create()
-        elif assistant_command is Command.RESTORE:
+        elif command is Command.RESTORE:
             assistant.restore()
 
     except RuntimeError as error:
@@ -87,8 +94,8 @@ class Assistant:
         #     os.makedirs(backup_dir_path)
 
         backup_file_name = f"{date_time}_inside_full_{mysql_version}.xbstream"
-        temp_backup_file_path = f"/tmp/{backup_file_name}"
-        temp_log_path = '/tmp/xtrabackup.log'
+        temp_backup_file_path = f"{TEMP_DIR_PATH}/{backup_file_name}"
+        temp_log_path = f"{TEMP_DIR_PATH}/xtrabackup.log"
 
         with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'a') as log_file:
             command_options = [
@@ -106,16 +113,16 @@ class Assistant:
             for line in command.stderr:
                 message = XtrabackupMessage(str(line, 'utf-8'))
 
-                log_file.write(message.formatted)
+                log_file.write(f"{message.formatted}\n")
                 print(f"{Color.BLUE}[ExtraBackup]{Color.RESET} {message.formatted}")
 
             return_code = command.wait()
 
         if return_code != 0:
-            log_path = f"/var/log/xtrabackup/{datetime}-error.log"
+            log_path = f"/var/log/xtrabackup/{date_time}-error.log"
             shutil.move(temp_log_path, log_path)
 
-            shutil.rmtree('/tmp')
+            clear_temp_dir()
             raise RuntimeError(f"Failed to create a backup! Error log: {log_path}")
 
         print(f"{Color.GREEN}Backup successfully created: {temp_backup_file_path}")
@@ -146,13 +153,8 @@ class XtrabackupMessage:
         return ' '.join(message)
 
 
-class Command(enum.Enum):
-    CREATE = 'create'
-    RESTORE = 'restore'
-
-
 def parse_command() -> Command:
-    """Parse arguments from a command line"""
+    """Register arguments from a command line"""
     parser = ArgumentParser(description=f"{NAME} v{VERSION}")
     parser.add_argument('--version', action='version', version=f"{NAME} v{VERSION}")
 
@@ -165,6 +167,15 @@ def parse_command() -> Command:
     return Command(args.command)
 
 
+def clear_temp_dir():
+    with os.scandir(TEMP_DIR_PATH) as entries:
+        for entry in entries:
+            if entry.is_dir() and not entry.is_symlink():
+                shutil.rmtree(entry.path)
+            else:
+                os.remove(entry.path)
+
+
 if __name__ == '__main__':
     # init colorama module
     init_colorama(autoreset=True)
@@ -172,13 +183,9 @@ if __name__ == '__main__':
     if sys.version_info < MIN_PYTHON_VERSION:
         sys.exit(f"{Color.RED}Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
 
-    assistant_command = parse_command()
-
     try:
-        main()
+        main(parse_command())
     except KeyboardInterrupt:
-        shutil.rmtree('/tmp')
-
+        clear_temp_dir()
         print(f'{Color.BLUE}Terminating...')
-
         sys.exit(0)
