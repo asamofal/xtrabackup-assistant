@@ -9,7 +9,7 @@ import sys
 import tarfile
 from argparse import ArgumentParser
 from datetime import datetime
-from colorama import Fore as Color, init as init_colorama
+from rich.console import Console
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = 0.1
@@ -44,10 +44,10 @@ class Environment:
 
     def print_info(self) -> None:
         tool_versions = [
-            f"{Color.GREEN}Percona MySQL Server {self.mysql_version}",
-            f"{Color.GREEN}Percona XtraBackup {self.xtrabackup_version}"
+            f"[green3]Percona MySQL Server {self.mysql_version}",
+            f"[green3]Percona XtraBackup {self.xtrabackup_version}"
         ]
-        print(f"{Color.BLUE}[Environment]{Color.RESET}", ' | '.join(tool_versions))
+        rprint(f"[blue][Environment][/blue]", ' | '.join(tool_versions))
 
     @staticmethod
     def _get_mysql_server_version() -> str:
@@ -103,7 +103,7 @@ class Assistant:
                 message = XtrabackupMessage(str(line, 'utf-8'))
 
                 log_file.write(f"{message.formatted}\n")
-                print(f"{Color.BLUE}[ExtraBackup]{Color.RESET} {message.formatted}")
+                rprint(f"[blue][ExtraBackup][/blue] {message.formatted}")
 
             return_code = command.wait()
 
@@ -119,17 +119,24 @@ class Assistant:
             os.makedirs(backup_dir_path)
 
         # make an archive and put to the final dir
-        print(f"{Color.BLUE}[tar]{Color.RESET} [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Creating archive...")
+        rprint(f"[blue]\\[tar][/blue] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Creating archive...")
         backup_archive_path = f"{backup_dir_path}/{backup_file_name}.tar"
         with tarfile.open(backup_archive_path, "w") as tar:
             tar.add(temp_backup_file_path, arcname=os.path.basename(temp_backup_file_path))
             tar.add(temp_log_path, arcname=os.path.basename(temp_log_path))
 
-        print(f"[{now('%Y-%m-%d %H:%M:%S')}] {Color.GREEN}Backup successfully created:{Color.RESET} {backup_archive_path}")
+        backup_size = f"{os.path.getsize(backup_archive_path) / float(1<<30):,.2f} GB"
+        success_message = [
+            f"[{now('%Y-%m-%d %H:%M:%S')}]",
+            f"[green3]Backup successfully created:[/bold green3]",
+            f"[magenta3]{backup_archive_path}",
+            f"[yellow3]({backup_size})"
+        ]
+        rprint(' '.join(success_message))
 
     @staticmethod
     def restore() -> None:
-        print('restoring....')
+        rprint('restoring....')
 
     @staticmethod
     def clear_temp_dir():
@@ -185,18 +192,20 @@ def now(out_format: str) -> str:
 
 
 if __name__ == '__main__':
-    # init colorama module
-    init_colorama(autoreset=True)
+    # declare function for printing to the terminal
+    console = Console(highlight=False)
+    rprint = console.print
 
     if sys.version_info < MIN_PYTHON_VERSION:
-        sys.exit(f"{Color.RED}Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
+        rprint("[red]Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
+        sys.exit(1)
 
     try:
         main(parse_command())
     except RuntimeError as error:
-        sys.exit(f"{Color.RED}[Error] {error}")
+        sys.exit(f"[red][Error] {error}")
     except KeyboardInterrupt:
-        print(f'\r{Color.BLUE}Terminating...')
+        rprint(f'\r[blue]Terminating...')
         sys.exit(0)
     finally:
         Assistant.clear_temp_dir()
