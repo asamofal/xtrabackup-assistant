@@ -6,9 +6,9 @@ import re
 import shutil
 import subprocess as sp
 import sys
+import tarfile
 from argparse import ArgumentParser
 from datetime import datetime
-
 from colorama import Fore as Color, init as init_colorama
 
 NAME = 'Percona XtraBackup Assistant'
@@ -27,18 +27,14 @@ class Command(enum.Enum):
 
 
 def main(command: Command):
-    try:
-        env = Environment()
-        env.print_info()
+    env = Environment()
+    env.print_info()
 
-        assistant = Assistant(env)
-        if command is Command.CREATE:
-            assistant.create()
-        elif command is Command.RESTORE:
-            assistant.restore()
-
-    except RuntimeError as error:
-        sys.exit(f"{Color.RED}[Error] {error}")
+    assistant = Assistant(env)
+    if command is Command.CREATE:
+        assistant.create()
+    elif command is Command.RESTORE:
+        assistant.restore()
 
 
 class Environment:
@@ -85,19 +81,12 @@ class Assistant:
         self._env = env
 
     def create(self) -> None:
-        mysql_version = self._env.mysql_version
-        date = datetime.now().strftime('%Y-%m-%d')
-        date_time = datetime.now().strftime('%Y-%m-%d_%H-%M')
-
-        # backup_dir_path = f"{BACKUPS_PATH}/{date}"
-        # if not os.path.exists(backup_dir_path):
-        #     os.makedirs(backup_dir_path)
-
-        backup_file_name = f"{date_time}_inside_full_{mysql_version}.xbstream"
-        temp_backup_file_path = f"{TEMP_DIR_PATH}/{backup_file_name}"
+        backup_timestamp = now('%Y-%m-%d_%H-%M')
+        backup_file_name = f"{backup_timestamp}_inside_full_{self._env.mysql_version}"
+        temp_backup_file_path = f"{TEMP_DIR_PATH}/{backup_file_name}.xbstream"
         temp_log_path = f"{TEMP_DIR_PATH}/xtrabackup.log"
 
-        with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'a') as log_file:
+        with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'w') as log_file:
             command_options = [
                 '--backup',
                 '--stream=xbstream',
@@ -105,7 +94,7 @@ class Assistant:
                 '--parallel=10',
                 '--compress-threads=5',
                 '--user=root',
-                '--password=secret1',
+                '--password=secret',
                 '--host=127.0.0.1',
                 '--target-dir=/tmp'
             ]
@@ -119,17 +108,41 @@ class Assistant:
             return_code = command.wait()
 
         if return_code != 0:
-            log_path = f"/var/log/xtrabackup/{date_time}-error.log"
+            log_path = f"/var/log/xtrabackup/{backup_timestamp}-error.log"
             shutil.move(temp_log_path, log_path)
 
-            clear_temp_dir()
             raise RuntimeError(f"Failed to create a backup! Error log: {log_path}")
 
-        print(f"{Color.GREEN}Backup successfully created: {temp_backup_file_path}")
+        # prepare a directory for today's backups
+        backup_dir_path = f"{BACKUPS_PATH}/{now('%Y-%m-%d')}"
+        if not os.path.exists(backup_dir_path):
+            os.makedirs(backup_dir_path)
+
+        # make an archive and put to the final dir
+        print(f"{Color.BLUE}[tar]{Color.RESET} [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Creating archive...")
+        backup_archive_path = f"{backup_dir_path}/{backup_file_name}.tar"
+        with tarfile.open(backup_archive_path, "w") as tar:
+            tar.add(temp_backup_file_path, arcname=os.path.basename(temp_backup_file_path))
+            tar.add(temp_log_path, arcname=os.path.basename(temp_log_path))
+
+        print(f"[{now('%Y-%m-%d %H:%M:%S')}] {Color.GREEN}Backup successfully created:{Color.RESET} {backup_archive_path}")
 
     @staticmethod
     def restore() -> None:
         print('restoring....')
+
+    @staticmethod
+    def clear_temp_dir():
+        with os.scandir(TEMP_DIR_PATH) as entries:
+            for entry in entries:
+                if entry.is_dir() and not entry.is_symlink():
+                    shutil.rmtree(entry.path)
+                else:
+                    os.remove(entry.path)
+
+        version_check_log = f"{TEMP_DIR_PATH}/percona-version-check"
+        if os.path.exists(version_check_log):
+            os.remove(version_check_log)
 
 
 class XtrabackupMessage:
@@ -167,13 +180,8 @@ def parse_command() -> Command:
     return Command(args.command)
 
 
-def clear_temp_dir():
-    with os.scandir(TEMP_DIR_PATH) as entries:
-        for entry in entries:
-            if entry.is_dir() and not entry.is_symlink():
-                shutil.rmtree(entry.path)
-            else:
-                os.remove(entry.path)
+def now(out_format: str) -> str:
+    return datetime.now().strftime(out_format)
 
 
 if __name__ == '__main__':
@@ -185,7 +193,10 @@ if __name__ == '__main__':
 
     try:
         main(parse_command())
+    except RuntimeError as error:
+        sys.exit(f"{Color.RED}[Error] {error}")
     except KeyboardInterrupt:
-        clear_temp_dir()
-        print(f'{Color.BLUE}Terminating...')
+        print(f'\r{Color.BLUE}Terminating...')
         sys.exit(0)
+    finally:
+        Assistant.clear_temp_dir()
