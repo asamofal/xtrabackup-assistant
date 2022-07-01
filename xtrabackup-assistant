@@ -127,8 +127,9 @@ class Assistant:
 
         backup_size = f"{os.path.getsize(backup_archive_path) / float(1<<30):,.2f} GB"
         success_message = [
+            f"[blue][Assistant][/blue]"
             f"[{now('%Y-%m-%d %H:%M:%S')}]",
-            f"[green3]Backup successfully created:[/bold green3]",
+            f"[green3]Backup successfully created:[/green3]",
             f"[magenta3]{backup_archive_path}",
             f"[yellow3]({backup_size})"
         ]
