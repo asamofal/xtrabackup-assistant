@@ -141,8 +141,7 @@ class Assistant:
                 f"--user={self._config.user}",
                 f"--password={self._config.password}",
                 '--host=127.0.0.1',
-                f"--target-dir={TEMP_DIR_PATH}",
-                f"--tmpdir={TEMP_DIR_PATH}",
+                f"--target-dir={TEMP_DIR_PATH}"
             )
             command = sp.Popen(['xtrabackup', *command_options], stdout=backup_file, stderr=sp.PIPE)
             for line in command.stderr:
@@ -157,10 +156,10 @@ class Assistant:
             log_path = f"/var/log/xtrabackup/{backup_timestamp}-error.log"
             shutil.move(temp_log_path, log_path)
 
-            raise RuntimeError(f"Failed to create a backup! Error log: {log_path}")
+            raise RuntimeError(f"Failed to create a backup! Error log: [default]{log_path}")
 
         # prepare a directory for today's backups
-        backup_dir_path = f"{BACKUPS_PATH}/{now('%Y-%m-%d')}"
+        backup_dir_path = f"{BACKUPS_PATH}/{now('%Y')}/{now('%m')}"
         if not os.path.exists(backup_dir_path):
             os.makedirs(backup_dir_path)
 
@@ -173,7 +172,7 @@ class Assistant:
 
         backup_size = f"{os.path.getsize(backup_archive_path) / float(1<<30):,.2f} GB"
         success_message = (
-            f"[blue][Assistant][/blue]"
+            f"[blue][Assistant][/blue]",
             f"[{now('%Y-%m-%d %H:%M:%S')}]",
             f"[green3]Backup successfully created:[/green3]",
             f"[magenta3]{backup_archive_path}",
@@ -193,6 +192,10 @@ class Assistant:
                     shutil.rmtree(entry.path)
                 else:
                     os.remove(entry.path)
+
+        version_check_log = f"/tmp/percona-version-check"
+        if os.path.exists(version_check_log):
+            os.remove(version_check_log)
 
 
 class XtrabackupMessage:
@@ -249,7 +252,7 @@ if __name__ == '__main__':
         rprint(f"[bright_red][Error] {error}")
         sys.exit(1)
     except KeyboardInterrupt:
-        rprint(f'\r[blue]Terminating...')
+        print('\rTerminating...')
         sys.exit(0)
     finally:
         Assistant.clear_temp_dir()
