@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import enum
+import json
 import os
 import re
 import shutil
@@ -19,6 +20,7 @@ AUTHOR = 'Anton Samofal'
 # CONFIG
 BACKUPS_PATH = '/backups'
 TEMP_DIR_PATH = '/tmp/xtrabackup'
+XTRABACKUP_CONFIG_PATH = '/run/secrets/xtrabackup_config.json'
 
 
 class Command(enum.Enum):
@@ -30,7 +32,7 @@ def main(command: Command):
     env = Environment()
     env.print_info()
 
-    assistant = Assistant(env)
+    assistant = Assistant(env, Config())
     if command is Command.CREATE:
         assistant.create()
     elif command is Command.RESTORE:
@@ -43,10 +45,10 @@ class Environment:
         self.xtrabackup_version = self._get_xtrabackup_version()
 
     def print_info(self) -> None:
-        tool_versions = [
+        tool_versions = (
             f"[green3]Percona MySQL Server {self.mysql_version}",
             f"[green3]Percona XtraBackup {self.xtrabackup_version}"
-        ]
+        )
         rprint(f"[blue][Environment][/blue]", ' | '.join(tool_versions))
 
     @staticmethod
@@ -76,9 +78,52 @@ class Environment:
         return xtrabackup_version_match.group(1)
 
 
+class Config:
+    def __init__(self):
+        self.user = None
+        self.password = None
+        self.parallel = 10
+
+        self.load_from_secrets()
+
+    def load_from_secrets(self):
+        try:
+            with open(XTRABACKUP_CONFIG_PATH, 'r') as config_file:
+                try:
+                    config = json.load(config_file)
+                except json.decoder.JSONDecodeError:
+                    raise RuntimeError('Failed to parse the xtrabackup config. Is it valid JSON?')
+        except FileNotFoundError:
+            raise RuntimeError(f"Config file is missing: [default]/run/secrets/xtrabackup_config.json")
+
+        # check for required options
+        required_options = ('user', 'password')
+        missing_required_options = tuple(
+            filter(lambda required_option: required_option not in config, required_options)
+        )
+        if len(missing_required_options) > 0:
+            raise RuntimeError(f"Config is missing required options: {', '.join(missing_required_options)}")
+
+        # fill in config props
+        for option, value in config.items():
+            if hasattr(self, option):
+                setattr(self, option, value)
+            else:
+                message = (
+                    f"[yellow3]\\[Config][/yellow3]",
+                    'Invalid xtrabackup config option:',
+                    f"[red]{option}[/red].",
+                    'Skipped.'
+                )
+                rprint(' '.join(message))
+
+        rprint(f"[blue]\\[Config][/blue] [green3]XtraBackup config is ready.[/green3]")
+
+
 class Assistant:
-    def __init__(self, env: Environment):
+    def __init__(self, env: Environment, config: Config):
         self._env = env
+        self._config = config
 
     def create(self) -> None:
         backup_timestamp = now('%Y-%m-%d_%H-%M')
@@ -87,17 +132,18 @@ class Assistant:
         temp_log_path = f"{TEMP_DIR_PATH}/xtrabackup.log"
 
         with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'w') as log_file:
-            command_options = [
+            command_options = (
                 '--backup',
                 '--stream=xbstream',
                 '--compress',
-                '--parallel=10',
+                f"--parallel={self._config.parallel}",
                 '--compress-threads=5',
-                '--user=root',
-                '--password=secret',
+                f"--user={self._config.user}",
+                f"--password={self._config.password}",
                 '--host=127.0.0.1',
-                '--target-dir=/tmp'
-            ]
+                f"--target-dir={TEMP_DIR_PATH}",
+                f"--tmpdir={TEMP_DIR_PATH}",
+            )
             command = sp.Popen(['xtrabackup', *command_options], stdout=backup_file, stderr=sp.PIPE)
             for line in command.stderr:
                 message = XtrabackupMessage(str(line, 'utf-8'))
@@ -126,13 +172,13 @@ class Assistant:
             tar.add(temp_log_path, arcname=os.path.basename(temp_log_path))
 
         backup_size = f"{os.path.getsize(backup_archive_path) / float(1<<30):,.2f} GB"
-        success_message = [
+        success_message = (
             f"[blue][Assistant][/blue]"
             f"[{now('%Y-%m-%d %H:%M:%S')}]",
             f"[green3]Backup successfully created:[/green3]",
             f"[magenta3]{backup_archive_path}",
             f"[yellow3]({backup_size})"
-        ]
+        )
         rprint(' '.join(success_message))
 
     @staticmethod
@@ -147,10 +193,6 @@ class Assistant:
                     shutil.rmtree(entry.path)
                 else:
                     os.remove(entry.path)
-
-        version_check_log = f"{TEMP_DIR_PATH}/percona-version-check"
-        if os.path.exists(version_check_log):
-            os.remove(version_check_log)
 
 
 class XtrabackupMessage:
@@ -204,7 +246,8 @@ if __name__ == '__main__':
     try:
         main(parse_command())
     except RuntimeError as error:
-        sys.exit(f"[red][Error] {error}")
+        rprint(f"[bright_red][Error] {error}")
+        sys.exit(1)
     except KeyboardInterrupt:
         rprint(f'\r[blue]Terminating...')
         sys.exit(0)
