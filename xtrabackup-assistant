@@ -9,6 +9,8 @@ import socket
 import subprocess as sp
 import sys
 import tarfile
+import threading
+import time
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,7 +19,8 @@ from pathlib import Path, PurePath
 import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
 from rich.console import Console
-from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
+from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn, \
+    TaskProgressColumn
 
 # META INFO
 NAME = 'Percona XtraBackup Assistant'
@@ -184,7 +187,7 @@ class SftpClient:
             raise RuntimeError(f"Failed to init the SFTP connection: {e}")
 
     def upload(self, local_path: Path, remote_path: PurePath, display_progress=True):
-        remote_dir_path = PurePath(remote_path.parent.as_posix().lstrip('/'))
+        remote_dir_path = PurePath(str(remote_path.parent).lstrip('/'))
         self.mkdir_p(remote_dir_path)
 
         try:
@@ -202,12 +205,12 @@ class SftpClient:
                     uploading = progress.add_task("[blue]Uploading...", total=file_size)
 
                     self.sftp_client.put(
-                        local_path.as_posix(),
-                        remote_path.as_posix(),
+                        str(local_path),
+                        str(remote_path),
                         lambda transferred, total: progress.update(uploading, completed=transferred)
                     )
             else:
-                self.sftp_client.put(local_path.as_posix(), remote_path.as_posix())
+                self.sftp_client.put(str(local_path), str(remote_path))
         except (EOFError, SSHException, KeyboardInterrupt):
             rprint('[blue][SFTP][/blue] [italic]Terminate signal received. Cleaning up....')
             # create a new connection as a socket of the current may be closed already
@@ -254,8 +257,8 @@ class Assistant:
     def create(self) -> None:
         backup_timestamp = now('%Y-%m-%d_%H-%M')
         backup_file_name = f"{backup_timestamp}_inside_full_{self._env.mysql_version}"
-        temp_backup_file_path = f"{TEMP_DIR_PATH}/{backup_file_name}.xbstream"
-        temp_log_path = f"{TEMP_DIR_PATH}/xtrabackup.log"
+        temp_backup_file_path = Path(f"{TEMP_DIR_PATH}/{backup_file_name}.xbstream")
+        temp_log_path = Path(f"{TEMP_DIR_PATH}/xtrabackup.log")
 
         with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'w') as log_file:
             command_options = (
@@ -279,30 +282,54 @@ class Assistant:
             return_code = command.wait()
 
         if return_code != 0:
-            log_path = f"/var/log/xtrabackup/{backup_timestamp}-error.log"
+            log_path = Path(f"/var/log/xtrabackup/{backup_timestamp}-error.log")
             shutil.move(temp_log_path, log_path)
 
-            raise RuntimeError(f"Failed to create a backup! Error log: [default]{log_path}")
+            raise RuntimeError(f"Failed to create a backup! Error log: [default]{str(log_path)}")
 
         # prepare a directory for today's backups
         backup_dir_path = f"{BACKUPS_PATH}/{now('%Y')}/{now('%m')}"
         if not os.path.exists(backup_dir_path):
             os.makedirs(backup_dir_path)
 
-        # make an archive and put to the final dir
-        rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Creating archive...")
-        backup_archive_path = f"{backup_dir_path}/{backup_file_name}.tar"
-        with tarfile.open(backup_archive_path, "w") as tar:
-            tar.add(temp_backup_file_path, arcname=os.path.basename(temp_backup_file_path))
-            tar.add(temp_log_path, arcname=os.path.basename(temp_log_path))
+        # make an archive in the final dir
+        backup_size = temp_backup_file_path.stat().st_size
+        backup_archive_path = Path(f"{backup_dir_path}/{backup_file_name}.tar")
+        with Progress(
+            TextColumn('[blue]\\[tar][/blue]'),
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            transient=True
+        ) as progress:
+            rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Start creating archive.")
 
-        backup_size = f"{os.path.getsize(backup_archive_path) / float(1<<30):,.2f} GB"
+            creating_tar = progress.add_task("[blue]Creating archive...", total=backup_size)
+
+            # create an archive asynchronously
+            def create_tar():
+                with tarfile.open(backup_archive_path, 'w') as tar:
+                    tar.add(temp_backup_file_path, arcname=temp_backup_file_path.name)
+                    tar.add(temp_log_path, arcname=temp_log_path.name)
+            tar_thread = threading.Thread(target=create_tar, name='tar_thread')
+            tar_thread.start()
+
+            # thread need some time to create an archive
+            time.sleep(1.0)
+
+            while not progress.finished:
+                backup_archive_size = backup_archive_path.stat().st_size
+                progress.update(creating_tar, completed=backup_archive_size)
+                time.sleep(1.0)
+
+        backup_archive_size = backup_archive_path.stat().st_size
         success_message = (
             f"[blue][Assistant][/blue]",
             f"[{now('%Y-%m-%d %H:%M:%S')}]",
             f"[green3]Backup successfully created:[/green3]",
-            backup_archive_path,
-            f"[italic]({backup_size})[/italic]"
+            f"[italic]{str(backup_archive_path)}",
+            f"({backup_archive_size / float(1<<30):,.2f}GB)"
         )
         rprint(' '.join(success_message))
 
