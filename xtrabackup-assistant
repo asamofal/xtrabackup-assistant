@@ -17,8 +17,7 @@ from pathlib import Path, PurePath
 import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
 from rich.console import Console
-from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, SpinnerColumn, DownloadColumn, \
-    TransferSpeedColumn
+from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
 # META INFO
 NAME = 'Percona XtraBackup Assistant'
@@ -40,90 +39,22 @@ class Command(enum.Enum):
     RESTORE = 'restore'
 
 
-class SftpClient:
-    def __init__(self, host: str, user: str, password: str):
-        try:
-            self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-            self.ssh_client.connect(hostname=host, username=user, password=password)
-            self.sftp_client = self.ssh_client.open_sftp()
-        except (SSHException, AuthenticationException, socket.error) as e:
-            raise RuntimeError(f"Failed to init the SFTP connection: {e}")
-
-    def upload(self, local_path: Path, remote_path: PurePath, display_progress=True):
-        remote_dir_path = PurePath(remote_path.parent.as_posix().lstrip('/'))
-        self.mkdir_p(remote_dir_path)
-
-        if display_progress:
-            with Progress(
-                TextColumn('[blue][SFTP][/blue]'),
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                DownloadColumn(),
-                TransferSpeedColumn(),
-                transient=True
-            ) as progress:
-                file_size = local_path.stat().st_size
-                uploading = progress.add_task("[blue]Uploading...", total=file_size)
-
-                self.sftp_client.put(
-                    local_path.as_posix(),
-                    remote_path.as_posix(),
-                    lambda transferred, total: progress.update(uploading, completed=transferred)
-                )
-        else:
-            self.sftp_client.put(local_path.as_posix(), remote_path.as_posix())
-
-    def delete(self, remote_path: PurePath):
-        self.sftp_client.remove(remote_path.as_posix())
-
-    def mkdir_p(self, remote_path: PurePath):
-        """Make parent directories as needed"""
-        dir_path = ''
-        for dir_name in remote_path.parts:
-            dir_path += f"/{dir_name}"
-            try:
-                self.sftp_client.listdir(dir_path)
-            except IOError:
-                self.sftp_client.mkdir(dir_path, 0o755)
-
-    def close(self):
-        if self.sftp_client is not None:
-            self.sftp_client.close()
-            self.sftp_client = None
-
-        if self.ssh_client is not None:
-            self.ssh_client.close()
-            self.ssh_client = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, e_type, value, traceback):
-        self.close()
-
-
 def main(command: Command):
     env = Environment()
     env.print_info()
 
     config = Config.from_secrets()
-    sftp_config = config.sftp
-    if sftp_config is not None:
-        with SftpClient(host=sftp_config.host, user=sftp_config.user, password=sftp_config.password) as sftp:
-            rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
-
-            local_path = Path('/backups/2022/07/2022-07-07_13-07_inside_full_8.0.28-19.tar')
-            remote_path = PurePath(f"{config.sftp.path}/{local_path.name}")
-            try:
-                sftp.upload(local_path, remote_path)
-            except KeyboardInterrupt:
-                sftp.delete(remote_path)
-                raise KeyboardInterrupt
-
-            rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
+    # config.sftp = config.sftp
+    # if config.sftp is not None:
+    #     with SftpClient(config.sftp) as sftp:
+    #         rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
+    #
+    #         local_path = Path('/backups/2022/07/2022-07-07_13-07_inside_full_8.0.28-19.tar')
+    #         remote_path = PurePath(f"{config.sftp.path}/{local_path.name}")
+    #         sftp.upload(local_path, remote_path)
+    #
+    #         rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
+    # exit(0)
 
     assistant = Assistant(env, config)
     if command is Command.CREATE:
@@ -239,6 +170,82 @@ class Config:
         return self
 
 
+class SftpClient:
+    def __init__(self, config: SftpConfig):
+        try:
+            self._config = config
+
+            self.ssh_client = paramiko.SSHClient()
+            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            self.ssh_client.connect(hostname=config.host, username=config.user, password=config.password)
+            self.sftp_client = self.ssh_client.open_sftp()
+        except (SSHException, AuthenticationException, socket.error) as e:
+            raise RuntimeError(f"Failed to init the SFTP connection: {e}")
+
+    def upload(self, local_path: Path, remote_path: PurePath, display_progress=True):
+        remote_dir_path = PurePath(remote_path.parent.as_posix().lstrip('/'))
+        self.mkdir_p(remote_dir_path)
+
+        try:
+            if display_progress:
+                with Progress(
+                    TextColumn('[blue][SFTP][/blue]'),
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    DownloadColumn(),
+                    TransferSpeedColumn(),
+                    transient=True
+                ) as progress:
+                    file_size = local_path.stat().st_size
+                    uploading = progress.add_task("[blue]Uploading...", total=file_size)
+
+                    self.sftp_client.put(
+                        local_path.as_posix(),
+                        remote_path.as_posix(),
+                        lambda transferred, total: progress.update(uploading, completed=transferred)
+                    )
+            else:
+                self.sftp_client.put(local_path.as_posix(), remote_path.as_posix())
+        except (EOFError, SSHException, KeyboardInterrupt):
+            rprint('[blue][SFTP][/blue] [italic]Terminate signal received. Cleaning up....')
+            # create a new connection as a socket of the current may be closed already
+            with SftpClient(self._config) as sftp:
+                sftp.delete(remote_path, ignore_errors=True)
+                raise KeyboardInterrupt
+
+    def delete(self, remote_path: PurePath, ignore_errors=False):
+        try:
+            self.sftp_client.remove(remote_path.as_posix())
+        except IOError as e:
+            if ignore_errors is False:
+                raise e
+
+    def mkdir_p(self, remote_path: PurePath):
+        """Make parent directories as needed"""
+        dir_path = ''
+        for dir_name in remote_path.parts:
+            dir_path += f"/{dir_name}"
+            try:
+                self.sftp_client.listdir(dir_path)
+            except IOError:
+                self.sftp_client.mkdir(dir_path, 0o755)
+
+    def close(self):
+        if self.sftp_client is not None:
+            self.sftp_client.close()
+
+        if self.ssh_client is not None:
+            self.ssh_client.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, e_type, value, traceback):
+        self.close()
+
+
 class Assistant:
     def __init__(self, env: Environment, config: Config):
         self._env = env
@@ -299,20 +306,15 @@ class Assistant:
         )
         rprint(' '.join(success_message))
 
-        sftp_config = self._config.sftp
-        if sftp_config is not None:
-            with SftpClient(host=sftp_config.host, user=sftp_config.user, password=sftp_config.password) as sftp:
-                rprint(f"[blue][SFTP][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Connected to SFTP backups storage.")
+        if self._config.sftp is not None:
+            with SftpClient(self._config.sftp) as sftp:
+                rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
 
-                local_path = Path(backup_archive_path)
-                remote_path = PurePath(f"{sftp_config.path}/{local_path.name}")
-                try:
-                    sftp.upload(local_path, remote_path)
-                except KeyboardInterrupt:
-                    sftp.delete(remote_path)
-                    raise KeyboardInterrupt
+                local_path = Path('/backups/2022/07/2022-07-07_13-07_inside_full_8.0.28-19.tar')
+                remote_path = PurePath(f"{self._config.sftp.path}/{local_path.name}")
+                sftp.upload(local_path, remote_path)
 
-            rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
+                rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
 
     @staticmethod
     def restore() -> None:
