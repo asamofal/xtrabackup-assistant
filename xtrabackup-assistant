@@ -9,8 +9,6 @@ import socket
 import subprocess as sp
 import sys
 import tarfile
-import threading
-import time
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from datetime import datetime
@@ -47,16 +45,43 @@ def main(command: Command):
     env.print_info()
 
     config = Config.from_secrets()
-    # config.sftp = config.sftp
-    # if config.sftp is not None:
-    #     with SftpClient(config.sftp) as sftp:
-    #         rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
+
+    # create an archive asynchronously
+    # try:
+    #     def create_tar():
+    #         backup_archive_path = Path('/backups/2022/07/2022-07-08_22-22_inside_full_8.0.28-19__.tar')
+    #         with tarfile.open(backup_archive_path, 'w') as tar:
+    #             temp_backup_file_path = Path('/backups/2022/07/2022-07-08_22-22_inside_full_8.0.28-19.tar')
+    #             tar.add(temp_backup_file_path, arcname=temp_backup_file_path.name)
+    #     tar_thread = threading.Thread(target=create_tar, name='tar_thread')
+    #     tar_thread.start()
+    # except KeyboardInterrupt:
+    #     print('Interrupted!')
+    #     sys.exit(0)
+
+    # backup_path = Path('/backups/2022/07/2022-07-08_22-22_inside_full_8.0.28-19.tar')
+    # backup_archive_path = Path('/backups/2022/07/backup_archive.tar')
+    # with Progress(
+    #         TextColumn('[blue]\\[tar][/blue]'),
+    #         SpinnerColumn(),
+    #         TextColumn("[progress.description]{task.description}"),
+    #         BarColumn(),
+    #         TaskProgressColumn(),
+    #         transient=True
+    # ) as progress:
+    #     backup_size = backup_path.stat().st_size
     #
-    #         local_path = Path('/backups/2022/07/2022-07-07_13-07_inside_full_8.0.28-19.tar')
-    #         remote_path = PurePath(f"{config.sftp.path}/{local_path.name}")
-    #         sftp.upload(local_path, remote_path)
+    #     try:
+    #         with progress.open(backup_path, 'rb', description='[blue]Creating archive...') as backup:
+    #             with tarfile.open(backup_archive_path, 'w') as tar:
+    #                 file_info = tarfile.TarInfo(backup_path.name)
+    #                 file_info.size = backup_size
+    #                 tar.addfile(file_info, fileobj=backup)
+    #     except KeyboardInterrupt:
+    #         if os.path.exists(backup_archive_path):
+    #             os.remove(backup_archive_path)
+    #         raise KeyboardInterrupt
     #
-    #         rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
     # exit(0)
 
     assistant = Assistant(env, config)
@@ -220,7 +245,7 @@ class SftpClient:
 
     def delete(self, remote_path: PurePath, ignore_errors=False):
         try:
-            self.sftp_client.remove(remote_path.as_posix())
+            self.sftp_client.remove(str(remote_path))
         except IOError as e:
             if ignore_errors is False:
                 raise e
@@ -242,7 +267,7 @@ class SftpClient:
         if self.ssh_client is not None:
             self.ssh_client.close()
 
-    def __enter__(self):
+    def __enter__(self) -> "SftpClient":
         return self
 
     def __exit__(self, e_type, value, traceback):
@@ -293,7 +318,6 @@ class Assistant:
             os.makedirs(backup_dir_path)
 
         # make an archive in the final dir
-        backup_size = temp_backup_file_path.stat().st_size
         backup_archive_path = Path(f"{backup_dir_path}/{backup_file_name}.tar")
         with Progress(
             TextColumn('[blue]\\[tar][/blue]'),
@@ -305,23 +329,24 @@ class Assistant:
         ) as progress:
             rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Start creating archive.")
 
-            creating_tar = progress.add_task("[blue]Creating archive...", total=backup_size)
+            try:
+                with progress.open(temp_backup_file_path, 'rb', description='[blue]Creating archive...') as backup:
+                    with tarfile.open(backup_archive_path, 'w') as tar:
+                        # add backup file
+                        file_info = tarfile.TarInfo(temp_backup_file_path.name)
+                        file_info.size = temp_backup_file_path.stat().st_size
+                        tar.addfile(file_info, fileobj=backup)
+                        # add log file
+                        tar.add(temp_log_path, arcname=temp_log_path.name)
+            except KeyboardInterrupt:
+                if os.path.exists(backup_archive_path):
+                    os.remove(backup_archive_path)
+                if len(os.listdir(backup_archive_path.parent)) == 0:
+                    os.rmdir(backup_archive_path.parent)
 
-            # create an archive asynchronously
-            def create_tar():
-                with tarfile.open(backup_archive_path, 'w') as tar:
-                    tar.add(temp_backup_file_path, arcname=temp_backup_file_path.name)
-                    tar.add(temp_log_path, arcname=temp_log_path.name)
-            tar_thread = threading.Thread(target=create_tar, name='tar_thread')
-            tar_thread.start()
+                raise KeyboardInterrupt
 
-            # thread need some time to create an archive
-            time.sleep(1.0)
-
-            while not progress.finished:
-                backup_archive_size = backup_archive_path.stat().st_size
-                progress.update(creating_tar, completed=backup_archive_size)
-                time.sleep(1.0)
+            rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Archive created.")
 
         backup_archive_size = backup_archive_path.stat().st_size
         success_message = (
