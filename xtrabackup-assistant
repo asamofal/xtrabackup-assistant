@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import socket
+import stat
 import subprocess as sp
 import sys
 import tarfile
@@ -30,6 +31,7 @@ MIN_PYTHON_VERSION = (3, 9)
 BACKUPS_PATH = '/backups'
 TEMP_DIR_PATH = '/tmp/xtrabackup'
 XTRABACKUP_CONFIG_PATH = '/run/secrets/xtrabackup_config.json'
+ERROR_LOG_DIR_PATH = '/var/log/xtrabackup'
 # BACKUPS_PATH = './backups'
 # TEMP_DIR_PATH = './tmp/xtrabackup'
 # XTRABACKUP_CONFIG_PATH = './config.json'
@@ -45,7 +47,6 @@ def main(command: Command):
     env.print_info()
 
     config = Config.from_secrets()
-
     # create an archive asynchronously
     # try:
     #     def create_tar():
@@ -241,11 +242,16 @@ class SftpClient:
             # create a new connection as a socket of the current may be closed already
             with SftpClient(self._config) as sftp:
                 sftp.delete(remote_path, ignore_errors=True)
+                if len(self.sftp_client.listdir(str(remote_path.parent))) == 0:
+                    sftp.delete(remote_path.parent, ignore_errors=True)
+
                 raise KeyboardInterrupt
 
     def delete(self, remote_path: PurePath, ignore_errors=False):
         try:
-            self.sftp_client.remove(str(remote_path))
+            path = str(remote_path)
+            is_dir = stat.S_ISDIR(self.sftp_client.stat(path).st_mode)
+            self.sftp_client.rmdir(path) if is_dir else self.sftp_client.remove(path)
         except IOError as e:
             if ignore_errors is False:
                 raise e
@@ -282,8 +288,8 @@ class Assistant:
     def create(self) -> None:
         backup_timestamp = now('%Y-%m-%d_%H-%M')
         backup_file_name = f"{backup_timestamp}_inside_full_{self._env.mysql_version}"
-        temp_backup_file_path = Path(f"{TEMP_DIR_PATH}/{backup_file_name}.xbstream")
-        temp_log_path = Path(f"{TEMP_DIR_PATH}/xtrabackup.log")
+        temp_backup_file_path = Path(TEMP_DIR_PATH, f"{backup_file_name}.xbstream")
+        temp_log_path = Path(TEMP_DIR_PATH, 'xtrabackup.log')
 
         with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'w') as log_file:
             command_options = (
@@ -307,24 +313,25 @@ class Assistant:
             return_code = command.wait()
 
         if return_code != 0:
-            log_path = Path(f"/var/log/xtrabackup/{backup_timestamp}-error.log")
+            log_path = Path(ERROR_LOG_DIR_PATH, f"{backup_timestamp}-error.log")
             shutil.move(temp_log_path, log_path)
 
             raise RuntimeError(f"Failed to create a backup! Error log: [default]{str(log_path)}")
 
         # prepare a directory for today's backups
-        backup_dir_path = f"{BACKUPS_PATH}/{now('%Y')}/{now('%m')}"
-        if not os.path.exists(backup_dir_path):
-            os.makedirs(backup_dir_path)
+        backup_archive_dir_path = Path(f"{BACKUPS_PATH}/{now('%Y')}/{now('%m')}")
+        if not os.path.exists(backup_archive_dir_path):
+            os.makedirs(backup_archive_dir_path)
 
         # make an archive in the final dir
-        backup_archive_path = Path(f"{backup_dir_path}/{backup_file_name}.tar")
+        backup_archive_path = Path(backup_archive_dir_path, f"{backup_file_name}.tar")
         with Progress(
             TextColumn('[blue]\\[tar][/blue]'),
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TaskProgressColumn(),
+            DownloadColumn(),
             transient=True
         ) as progress:
             rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Start creating archive.")
@@ -338,10 +345,11 @@ class Assistant:
                         tar.addfile(file_info, fileobj=backup)
                         # add log file
                         tar.add(temp_log_path, arcname=temp_log_path.name)
+                progress.stop()
             except KeyboardInterrupt:
                 if os.path.exists(backup_archive_path):
                     os.remove(backup_archive_path)
-                if len(os.listdir(backup_archive_path.parent)) == 0:
+                if len(os.listdir(backup_archive_dir_path)) == 0:
                     os.rmdir(backup_archive_path.parent)
 
                 raise KeyboardInterrupt
@@ -358,13 +366,16 @@ class Assistant:
         )
         rprint(' '.join(success_message))
 
+        # upload to SFTP backups storage if config provided
         if self._config.sftp is not None:
             with SftpClient(self._config.sftp) as sftp:
                 rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
 
-                local_path = Path('/backups/2022/07/2022-07-07_13-07_inside_full_8.0.28-19.tar')
-                remote_path = PurePath(f"{self._config.sftp.path}/{local_path.name}")
-                sftp.upload(local_path, remote_path)
+                try:
+                    remote_path = PurePath(self._config.sftp.path, now('%Y'), now('%m'), backup_archive_path.name)
+                    sftp.upload(backup_archive_path, remote_path)
+                except IOError as e:
+                    raise RuntimeError(f"[SFTP] Failed to upload the backup to SFTP backups storage: {e}")
 
                 rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
 
