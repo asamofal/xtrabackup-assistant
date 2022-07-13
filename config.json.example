@@ -1,0 +1,11 @@
+{
+  "user": "root",
+  "password": "secret",
+  "parallel": 5,
+  "sftp": {
+    "host": "",
+    "user": "",
+    "password": "",
+    "path": ""
+  }
+}
