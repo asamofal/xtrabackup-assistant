@@ -1,5 +1,8 @@
 /*
 
 !.gitignore
-!xtrabackup-assistant
+!main.py
 !requirements.txt
+!configs
+!assistant
+!utils
