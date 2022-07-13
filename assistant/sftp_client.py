@@ -6,7 +6,7 @@ import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
 from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
-from configs.sftp_config import SftpConfig
+from assistant.configs.sftp_config import SftpConfig
 from utils.rich_print import rprint
 
 

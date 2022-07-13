@@ -3,7 +3,7 @@
 !.gitignore
 !main.py
 !requirements.txt
-!configs
+!assistant/configs
 !assistant
 !utils
 !config.json.example

@@ -1,13 +1,14 @@
 import json
 
 from sftp_config import SftpConfig
+from utils import rprint
 
 
 class Config:
-    BACKUPS_PATH = '/backups'
-    TEMP_DIR_PATH = '/tmp/xtrabackup'
-    XTRABACKUP_CONFIG_PATH = '/run/secrets/xtrabackup_config.json'
-    ERROR_LOG_DIR_PATH = '/var/log/xtrabackup'
+    BACKUPS_PATH: str = '/backups'
+    TEMP_DIR_PATH: str = '/tmp/xtrabackup'
+    XTRABACKUP_CONFIG_PATH: str = '/run/secrets/xtrabackup_config.json'
+    ERROR_LOG_DIR_PATH: str = '/var/log/xtrabackup'
 
     user: str = None
     password: str = None
