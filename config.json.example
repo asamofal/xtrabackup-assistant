@@ -1,6 +1,6 @@
 {
-  "user": "root",
-  "password": "secret",
+  "user": "",
+  "password": "",
   "parallel": 5,
   "sftp": {
     "host": "",
