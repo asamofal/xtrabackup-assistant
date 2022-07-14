@@ -1,6 +1,6 @@
 import json
 
-from sftp_config import SftpConfig
+from assistant.configs import SftpConfig
 from utils import rprint
 
 

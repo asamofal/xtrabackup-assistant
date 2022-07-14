@@ -84,8 +84,8 @@ class CreateCommand:
             os.makedirs(backup_archive_dir_path)
 
         # create an archive in the final dir
-        backup_file_name = self._temp_backup_file_path.name.split('.')[0]
-        backup_archive_path = Path(backup_archive_dir_path, f"{backup_file_name}.tar")
+        backup_file_name = self._temp_backup_file_path.name.replace('xbstream', 'tar')
+        backup_archive_path = Path(backup_archive_dir_path, backup_file_name)
         with Progress(
             TextColumn('[blue]\\[tar][/blue]'),
             SpinnerColumn(),

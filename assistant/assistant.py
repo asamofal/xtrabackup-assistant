@@ -2,9 +2,7 @@ import os
 import shutil
 
 from assistant import Environment
-from assistant.commands import Command
-from assistant.commands.create import CreateCommand
-from assistant.commands.restore import RestoreCommand
+from assistant.commands import Command, CreateCommand, RestoreCommand
 from assistant.configs import Config
 
 

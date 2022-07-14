@@ -36,7 +36,7 @@ if __name__ == '__main__':
     subparsers.add_parser(Command.CREATE.value, help='create database dump')
     subparsers.add_parser(Command.RESTORE.value, help='restore database dump')
 
-    received_command = Command(parser.parse_args())
+    received_command = Command(parser.parse_args().command)
 
     try:
         main(received_command)
