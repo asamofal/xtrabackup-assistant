@@ -45,6 +45,6 @@ if __name__ == '__main__':
         sys.exit(1)
     except KeyboardInterrupt:
         print('\rTerminating...')
-        sys.exit(0)
+        sys.exit()
     finally:
         Assistant.clear_temp_dir()
