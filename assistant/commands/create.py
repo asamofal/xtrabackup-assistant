@@ -21,12 +21,12 @@ class CreateCommand:
         self._archive_path = None
 
     def execute(self):
-        self.create_backup()
-        self.create_archive()
+        self._create_backup()
+        self._create_archive()
 
         # upload to SFTP backups storage if config provided
         if self._config.sftp is not None:
-            self.upload_to_sftp_storage()
+            self._upload_to_sftp_storage()
 
         success_message = (
             f"[blue][Assistant][/blue]",
@@ -37,7 +37,7 @@ class CreateCommand:
         )
         rprint(' '.join(success_message))
 
-    def create_backup(self) -> None:
+    def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
 
         backup_timestamp = now('%Y-%m-%d_%H-%M')
@@ -75,7 +75,7 @@ class CreateCommand:
         self._temp_backup_file_path = temp_backup_file_path
         self._temp_log_path = temp_log_path
 
-    def create_archive(self) -> None:
+    def _create_archive(self) -> None:
         """ Create a tarball for backup and log files """
 
         # prepare a directory for today's backups
@@ -122,7 +122,7 @@ class CreateCommand:
 
         self._archive_path = backup_archive_path
 
-    def upload_to_sftp_storage(self) -> None:
+    def _upload_to_sftp_storage(self) -> None:
         """ Upload tarball to SFTP backups storage """
 
         with SftpClient(self._config.sftp) as sftp:
