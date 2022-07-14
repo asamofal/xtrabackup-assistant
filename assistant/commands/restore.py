@@ -1,5 +1,6 @@
 from assistant import Environment
 from assistant.configs import Config
+from utils import is_mysql_running
 
 
 class RestoreCommand:
@@ -7,8 +8,5 @@ class RestoreCommand:
         self._env = env
         self._config = config
 
-    def __call__(self):
-        pass
-
     def execute(self):
-        pass
+        print(is_mysql_running())
