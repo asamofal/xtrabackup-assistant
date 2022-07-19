@@ -5,6 +5,7 @@ import tarfile
 from pathlib import Path, PurePath
 
 from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn
+from rich.text import Text
 
 from assistant import XtrabackupMessage, SftpClient, Environment
 from assistant.configs import Config
@@ -24,24 +25,23 @@ class CreateCommand:
         self._create_backup()
         self._create_archive()
 
+        rprint(Text.assemble(
+            ('[Assistant] ', 'blue'),
+            (f"[{now('%Y-%m-%d %H:%M:%S')}] ", 'default'),
+            ('Backup successfully created: ', 'green3'),
+            (f"{str(self._archive_path)} ", 'default italic'),
+            (f"({self._archive_path.stat().st_size / float(1<<30):,.2f}GB)", 'default italic')
+        ))
+
         # upload to SFTP backups storage if config provided
         if self._config.sftp is not None:
             self._upload_to_sftp_storage()
-
-        success_message = (
-            f"[blue][Assistant][/blue]",
-            f"[{now('%Y-%m-%d %H:%M:%S')}]",
-            f"[green3]Backup successfully created:[/green3]",
-            f"[italic]{str(self._archive_path)}",
-            f"({self._archive_path.stat().st_size / float(1<<30):,.2f}GB)"
-        )
-        rprint(' '.join(success_message))
 
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
 
         backup_timestamp = now('%Y-%m-%d_%H-%M')
-        backup_file_name = f"{backup_timestamp}_inside_full_{self._env.mysql_version}"
+        backup_file_name = f"{backup_timestamp}_{self._config.project}_{self._env.mysql_version}"
         temp_backup_file_path = Path(Config.TEMP_DIR_PATH, f"{backup_file_name}.xbstream")
         temp_log_path = Path(Config.TEMP_DIR_PATH, 'xtrabackup.log')
 
@@ -50,10 +50,10 @@ class CreateCommand:
                 '--backup',
                 '--stream=xbstream',
                 '--compress',
-                f"--parallel={self._config.parallel}",
+                f"--parallel={self._config.xtrabackup.parallel}",
                 '--compress-threads=5',
-                f"--user={self._config.user}",
-                f"--password={self._config.password}",
+                f"--user={self._config.xtrabackup.user}",
+                f"--password={self._config.xtrabackup.password}",
                 '--host=127.0.0.1',
                 f"--target-dir={Config.TEMP_DIR_PATH}"
             )
@@ -132,6 +132,6 @@ class CreateCommand:
                 remote_path = PurePath(self._config.sftp.path, now('%Y'), now('%m'), self._archive_path.name)
                 sftp.upload(self._archive_path, remote_path)
             except IOError as e:
-                raise RuntimeError(f"[SFTP] Failed to upload the backup to SFTP backups storage: {e}")
+                raise RuntimeError(f"Failed to upload the backup to SFTP backups storage: {e}")
 
             rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')

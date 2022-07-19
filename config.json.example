@@ -1,11 +1,17 @@
 {
-  "user": "",
-  "password": "",
-  "parallel": 5,
+  "mysql": {
+    "user": "",
+    "password": "",
+    "parallel": 5
+  }
   "sftp": {
     "host": "",
     "user": "",
     "password": "",
-    "path": ""
+    "path": "/"
+  },
+  "slack": {
+    "token": "",
+    "channel": ""
   }
 }

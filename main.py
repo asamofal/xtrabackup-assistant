@@ -2,11 +2,14 @@
 
 import sys
 from argparse import ArgumentParser
+from pathlib import PurePath, Path
 
-from assistant import Environment, Assistant
+from assistant import Environment, Assistant, SftpClient
 from assistant.commands.command import Command
 from assistant.configs import Config
-from utils import rprint
+from errors import ConfigError
+from utils import rprint, now
+from utils.slack import Slack
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = '1.0.0'
@@ -15,13 +18,19 @@ MIN_PYTHON_VERSION = (3, 9)
 
 
 def main(command: Command):
-    env = Environment()
-    env.print_info()
+    config = Config()
+    config.print_ready_message()
 
-    config = Config.from_secrets()
+    try:
+        env = Environment()
+        env.print_versions()
 
-    assistant = Assistant(env, config)
-    assistant.execute(command)
+        assistant = Assistant(env, config)
+        assistant.execute(command)
+    except RuntimeError as e:
+        if config.slack is not None:
+            Slack(config.slack).notify(project=config.project, error=e)
+        raise RuntimeError(e)
 
 
 if __name__ == '__main__':
@@ -40,6 +49,9 @@ if __name__ == '__main__':
 
     try:
         main(received_command)
+    except ConfigError as error:
+        rprint(f"[bright_red][Config] {error}")
+        sys.exit(1)
     except RuntimeError as error:
         rprint(f"[bright_red][Error] {error}")
         sys.exit(1)

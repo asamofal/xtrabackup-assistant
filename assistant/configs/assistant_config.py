@@ -1,69 +1,92 @@
 import json
+from pathlib import Path
 
-from assistant.configs import SftpConfig
+from rich.text import Text
+
+from assistant.configs import SftpConfig, SlackConfig, XtrabackupConfig
+from errors import ConfigError
 from utils import rprint
 
 
 class Config:
-    BACKUPS_PATH: str = '/backups'
-    TEMP_DIR_PATH: str = '/tmp/xtrabackup'
-    XTRABACKUP_CONFIG_PATH: str = '/run/secrets/xtrabackup_config.json'
-    ERROR_LOG_DIR_PATH: str = '/var/log/xtrabackup'
+    BACKUPS_PATH: Path = Path('/backups')
+    TEMP_DIR_PATH: Path = Path('/tmp/xtrabackup')
+    XTRABACKUP_CONFIG_PATH: Path = Path('/run/secrets/xtrabackup_config.json')
+    ERROR_LOG_DIR_PATH: Path = Path('/var/log/xtrabackup')
 
-    user: str = None
-    password: str = None
-    parallel: int = 10
+    CONFIG_STRUCTURE: dict = {
+        'project': {
+            'optional': False,
+            'required_fields': {}
+        },
+        'xtrabackup': {
+            'optional': False,
+            'required_fields': {'user', 'password'}
+        },
+        'sftp': {
+            'optional': False,
+            'required_fields': {'host', 'user', 'password'}
+        },
+        'slack': {
+            'optional': True,
+            'required_fields': {'token', 'channel'}
+        }
+    }
+
+    project: str = None
+    xtrabackup: XtrabackupConfig = None
     sftp: SftpConfig = None
+    slack: SlackConfig = None
+
+    _raw_config: dict = None
+
+    def __init__(self):
+        try:
+            with open(self.XTRABACKUP_CONFIG_PATH, 'r') as config_file:
+                try:
+                    self._raw_config = json.load(config_file)
+                except json.decoder.JSONDecodeError:
+                    raise ConfigError('Failed to parse the config. Is it valid JSON?')
+        except FileNotFoundError:
+            raise ConfigError(f"Config file is missing: [default]{self.XTRABACKUP_CONFIG_PATH}")
+
+        self.validate_config()
+
+        self.project = self._raw_config['project']
+        self.xtrabackup = XtrabackupConfig(**self._raw_config['xtrabackup'])
+        if 'sftp' in self._raw_config:
+            self.sftp = SftpConfig(**self._raw_config['sftp'])
+        if 'slack' in self._raw_config:
+            self.slack = SlackConfig(**self._raw_config['slack'])
+
+    def validate_config(self):
+        # check for unknown top lvl nodes
+        unknown_nodes = [node for node in self._raw_config.keys() if node not in self.CONFIG_STRUCTURE.keys()]
+        if len(unknown_nodes) > 0:
+            message = Text.assemble(
+                ('[Config] ', 'yellow3'),
+                ('Unknown config nodes: ', 'yellow3'),
+                (f"{', '.join(unknown_nodes)}. ", 'red'),
+                ('Skipped.', 'yellow3')
+            )
+            rprint(message)
+
+        # check for required top lvl nodes
+        required_nodes = [key for key, value in self.CONFIG_STRUCTURE.items() if value['optional'] is False]
+        missing_required_nodes = [node for node in required_nodes if node not in self._raw_config.keys()]
+        if len(missing_required_nodes) > 0:
+            raise ConfigError(f"Missing required config nodes: [default]{', '.join(missing_required_nodes)}")
+
+        # check for existing node fields
+        for node_name, node_fields in self._raw_config.items():
+            required_node_fields = self.CONFIG_STRUCTURE[node_name]['required_fields']
+            missing_node_required_fields = [
+                f"{node_name}.{field}" for field in required_node_fields if field not in node_fields
+            ]
+            if len(missing_node_required_fields) > 0:
+                message = f"Missing required config fields: [default]{', '.join(missing_node_required_fields)}"
+                raise ConfigError(message)
 
     @staticmethod
-    def from_secrets():
-        self = Config()
-
-        try:
-            with open(Config.XTRABACKUP_CONFIG_PATH, 'r') as config_file:
-                try:
-                    config = json.load(config_file)
-                except json.decoder.JSONDecodeError:
-                    raise RuntimeError('Failed to parse the xtrabackup config. Is it valid JSON?')
-        except FileNotFoundError:
-            raise RuntimeError(f"Config file is missing: [default]/run/secrets/xtrabackup_config.json")
-
-        # check for required options
-        required_options = ('user', 'password')
-        missing_required_options = tuple(
-            filter(lambda required_option: required_option not in config, required_options)
-        )
-        if len(missing_required_options) > 0:
-            raise RuntimeError(f"Config is missing required options: [default]{', '.join(missing_required_options)}")
-
-        # set sftp option
-        if 'sftp' in config:
-            sftp_config = config.pop('sftp')
-
-            required_sftp_options = ('host', 'user', 'password')
-            missing_required_sftp_options = tuple(
-                filter(lambda required_option: required_option not in sftp_config, required_sftp_options)
-            )
-            if len(missing_required_sftp_options) > 0:
-                raise RuntimeError(
-                    f"SFTP config is missing required options: [default]{', '.join(missing_required_sftp_options)}"
-                )
-
-            self.sftp = SftpConfig(**sftp_config)
-
-        # set config options
-        for option, value in config.items():
-            if hasattr(self, option):
-                setattr(self, option, value)
-            else:
-                message = (
-                    f"[yellow3]\\[Config][/yellow3]",
-                    'Invalid xtrabackup config option:',
-                    f"[red]{option}[/red].",
-                    'Skipped.'
-                )
-                rprint(' '.join(message))
-
-        rprint(f"[blue]\\[Config][/blue] XtraBackup config is ready.")
-
-        return self
+    def print_ready_message():
+        rprint(f"[blue]\\[Config][/blue] [green3]Config is ready.[/green3]")
