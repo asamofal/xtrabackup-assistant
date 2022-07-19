@@ -40,7 +40,7 @@ class CreateCommand:
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
 
-        backup_timestamp = now('%Y-%m-%d_%H-%M')
+        backup_timestamp = now('%Y-%m-%d-%H-%M')
         backup_file_name = f"{backup_timestamp}_{self._config.project}_{self._env.mysql_version}"
         temp_backup_file_path = Path(Config.TEMP_DIR_PATH, f"{backup_file_name}.xbstream")
         temp_log_path = Path(Config.TEMP_DIR_PATH, 'xtrabackup.log')
