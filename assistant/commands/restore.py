@@ -1,8 +1,10 @@
-from rich.text import Text
+import re
+
+from packaging import version
 
 from assistant import Environment
 from assistant.configs import Config
-from utils import is_mysql_running, rprint
+from utils import rprint
 
 
 class RestoreCommand:
@@ -11,13 +13,17 @@ class RestoreCommand:
         self._config = config
 
     def execute(self):
-        if is_mysql_running():
-            message = Text.assemble(
-                ('Please restart the container with env variable: ', 'yellow3'),
-                ('XTRABACKUP_RESTORE=true', 'blue bold')
-            )
-            rprint(message)
+        local_suitable_backups = self._local_suitable_backups()
+        print(local_suitable_backups)
 
-            raise RuntimeError('MySQL server needs to be shut down before restore is performed.')
+    def _local_suitable_backups(self) -> list:
+        all_local_backups = list(Config.BACKUPS_PATH.rglob('*.tar'))
 
-        rprint('Restoring...')
+        suitable_local_backups = []
+        for backup_path in all_local_backups:
+            backup_mysql_version = version.parse(re.split('_', backup_path.stem)[-1])
+            min_target_mysql_version = version.parse(self._env.xtrabackup_version)
+            if backup_mysql_version <= min_target_mysql_version:
+                suitable_local_backups.append(backup_path)
+
+        return suitable_local_backups
