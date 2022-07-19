@@ -11,7 +11,7 @@ class Slack:
 
     def notify(self, project: str, error: Exception):
         attachment = slack.Attachment(
-            title='Failed to create a backup!',
+            title='XtraBackup Assistant error!',
             text=str(error),
             footer=project,
             color='red',
