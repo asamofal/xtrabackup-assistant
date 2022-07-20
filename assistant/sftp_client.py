@@ -33,14 +33,14 @@ class SftpClient:
                 with Progress(
                     TextColumn('[blue][SFTP][/blue]'),
                     SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
+                    TextColumn('[progress.description]{task.description}'),
                     BarColumn(),
                     DownloadColumn(),
                     TransferSpeedColumn(),
                     transient=True
                 ) as progress:
                     file_size = local_path.stat().st_size
-                    uploading = progress.add_task("[blue]Uploading...", total=file_size)
+                    uploading = progress.add_task('[blue]Uploading...', total=file_size)
 
                     self.sftp_client.put(
                         str(local_path),
