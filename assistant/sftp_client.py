@@ -1,6 +1,7 @@
 import socket
 import stat
 from pathlib import Path, PurePath
+from re import Pattern
 
 import paramiko
 from paramiko.ssh_exception import AuthenticationException, SSHException
@@ -78,6 +79,18 @@ class SftpClient:
                 self.sftp_client.listdir(dir_path)
             except IOError:
                 self.sftp_client.mkdir(dir_path, 0o755)
+
+    def r_find_files(self, remote_path: PurePath, pattern: Pattern = None) -> list:
+        file_paths = []
+
+        for entry in self.sftp_client.listdir_attr(str(remote_path)):
+            is_dir = stat.S_ISDIR(entry.st_mode)
+            if is_dir:
+                file_paths += self.r_find_files(PurePath(remote_path, entry.filename), pattern)
+            elif pattern is None or pattern.search(entry.filename):
+                file_paths.append(PurePath(remote_path, entry.filename))
+
+        return file_paths
 
     def close(self):
         if self.sftp_client is not None:
