@@ -21,7 +21,7 @@ class CreateCommand:
         self._temp_log_path = None
         self._archive_path = None
 
-    def execute(self):
+    def execute(self) -> None:
         self._create_backup()
         self._create_archive()
 
