@@ -10,6 +10,7 @@ from rich.text import Text
 from assistant import XtrabackupMessage, SftpClient, Environment
 from assistant.configs import Config
 from utils import now, rprint
+from humanize import naturalsize
 
 
 class CreateCommand:
@@ -30,7 +31,7 @@ class CreateCommand:
             (f"[{now('%Y-%m-%d %H:%M:%S')}] ", 'default'),
             ('Backup successfully created: ', 'green3'),
             (f"{str(self._archive_path)} ", 'default italic'),
-            (f"({self._archive_path.stat().st_size / float(1<<30):,.2f}GB)", 'default italic')
+            (f"({naturalsize(self._archive_path.stat().st_size)})", 'default italic')
         ))
 
         # upload to SFTP backups storage if config provided
