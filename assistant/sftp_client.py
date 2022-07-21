@@ -83,15 +83,19 @@ class SftpClient:
     def r_find_files(self, remote_path: PurePath, pattern: Pattern = None) -> list:
         file_paths = []
 
-        for entry_attr in self.sftp_client.listdir_attr(str(remote_path)):
-            is_dir = stat.S_ISDIR(entry_attr.st_mode)
-            if is_dir:
-                file_paths += self.r_find_files(PurePath(remote_path, entry_attr.filename), pattern)
-            elif pattern is None or pattern.search(entry_attr.filename):
-                file_paths.append({
-                    'path': PurePath(remote_path, entry_attr.filename),
-                    'attr': entry_attr
-                })
+        try:
+            for entry_attr in self.sftp_client.listdir_attr(str(remote_path)):
+                is_dir = stat.S_ISDIR(entry_attr.st_mode)
+                if is_dir:
+                    file_paths += self.r_find_files(PurePath(remote_path, entry_attr.filename), pattern)
+                elif pattern is None or pattern.search(entry_attr.filename):
+                    file_paths.append({
+                        'path': PurePath(remote_path, entry_attr.filename),
+                        'attr': entry_attr
+                    })
+        except IOError:
+            # in case of a wrong remote path just return an empty list
+            pass
 
         return file_paths
 
