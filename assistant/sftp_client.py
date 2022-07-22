@@ -24,6 +24,28 @@ class SftpClient:
         except (SSHException, AuthenticationException, socket.error) as e:
             raise RuntimeError(f"Failed to init the SFTP connection: {e}")
 
+    def download(self, remote_path: PurePath, local_path: Path, display_progress=True):
+        if display_progress:
+            with Progress(
+                TextColumn('[blue][SFTP][/blue]'),
+                SpinnerColumn(),
+                TextColumn('[progress.description]{task.description}'),
+                BarColumn(),
+                DownloadColumn(),
+                TransferSpeedColumn(),
+                transient=True
+            ) as progress:
+                file_size = self.sftp_client.stat(str(remote_path)).st_size
+                downloading = progress.add_task('[blue]Downloading...', total=file_size)
+
+                self.sftp_client.get(
+                    str(remote_path),
+                    str(local_path),
+                    lambda transferred, total: progress.update(downloading, completed=transferred)
+                )
+        else:
+            self.sftp_client.get(str(remote_path), str(local_path))
+
     def upload(self, local_path: Path, remote_path: PurePath, display_progress=True):
         remote_dir_path = PurePath(str(remote_path.parent).lstrip('/'))
         self.mkdir_p(remote_dir_path)
@@ -60,7 +82,6 @@ class SftpClient:
                     sftp.delete(remote_path.parent, ignore_errors=True)
 
                 raise KeyboardInterrupt
-
     def delete(self, remote_path: PurePath, ignore_errors=False):
         try:
             path = str(remote_path)
