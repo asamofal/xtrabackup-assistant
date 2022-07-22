@@ -1,14 +1,18 @@
 import re
+from collections import UserList
 from datetime import datetime
+from pathlib import Path, PurePath
 
 from humanize import naturalsize
 from packaging import version
 from rich.progress import Progress, TextColumn, SpinnerColumn
+from rich.prompt import Prompt, IntPrompt
 from rich.table import Table
+from rich.text import Text
 
 from assistant import Environment, SftpClient
 from assistant.configs import Config
-from utils import rprint
+from utils import rprint, now
 
 
 class RestoreCommand:
@@ -16,83 +20,116 @@ class RestoreCommand:
         self._env = env
         self._config = config
 
-        self.available_backups = {'local': [], 'sftp': []}
+        self.backup_list = BackupsList(self._env.xtrabackup_version)
 
     def execute(self) -> None:
+        self._set_backup_list()
+        if len(self.backup_list) == 0:
+            rprint(Text.assemble(
+                ('[Assistant] ', 'blue'),
+                ('Not found available backups.', 'orange1')
+            ))
+            return None
+
+        self.backup_list.print()
+        target_backup_no = IntPrompt.ask(
+            prompt=Text.assemble(('Please enter no of the target backup', 'blue')),
+            choices=self.backup_list.numbers,
+            show_choices=False
+        )
+        target_backup = self.backup_list[target_backup_no - 1]
+        rprint(target_backup.path)
+        # if target_backup.source == 'sftp':
+        #     with SftpClient(self._config.sftp) as sftp:
+        #         sftp.download(target_backup.path, Path(Config.BACKUPS_PATH, '2022/07', target_backup.path.name))
+
+    def _set_backup_list(self):
         with Progress(
-            SpinnerColumn(),
-            TextColumn('[progress.description]{task.description}'),
-            transient=True
+                SpinnerColumn(),
+                TextColumn('[progress.description]{task.description}'),
+                transient=True
         ) as progress:
             progress.add_task('[blue]Searching for available backups...')
 
-            self.available_backups['local'] = self._local_suitable_backups()
+            self.backup_list.extend(self._local_this_year_backups())
 
             if self._config.sftp is not None:
-                self.available_backups['sftp'] = self._sftp_suitable_backups()
+                self.backup_list.extend(self._sftp_this_year_backups())
 
-        self.display_available_backups()
+    def _local_this_year_backups(self) -> list:
+        current_year_backups_path = Path(self._config.BACKUPS_PATH, now('%Y'))
+        return list(map(
+            lambda path: Backup(source='local', path=path, size=path.stat().st_size),
+            current_year_backups_path.rglob('*.tar')
+        ))
 
-    def _local_suitable_backups(self) -> list:
-        all_local_backups = list(
-            map(lambda path: {'path': path, 'attr': path.stat()}, Config.BACKUPS_PATH.rglob('*.tar'))
-        )
-
-        local_suitable_backups = self._filter_only_supported_versions(all_local_backups)
-
-        local_backups = []
-        for backup in local_suitable_backups:
-            date = datetime.strptime(backup['path'].name.split('_')[0], '%Y-%m-%d-%H-%M').strftime('%Y-%m-%d %H:%M')
-            local_backups.append({
-                'source': 'local',
-                'date': date,
-                'filename': backup['path'].name,
-                'size': naturalsize(backup['attr'].st_size)
-            })
-
-        return local_backups
-
-    def _sftp_suitable_backups(self) -> list:
+    def _sftp_this_year_backups(self) -> list:
         with SftpClient(self._config.sftp) as sftp:
-            all_sftp_backups = sftp.r_find_files(self._config.sftp.path, re.compile('.tar$'))
+            current_year_backups_path = PurePath(self._config.sftp.path, now('%Y'))
+            return list(map(
+                lambda backup: Backup(source='sftp', path=backup['path'], size=backup['attr'].st_size),
+                sftp.r_find_files(current_year_backups_path, re.compile('.tar$'))
+            ))
 
-        sftp_suitable_backups = self._filter_only_supported_versions(all_sftp_backups)
 
-        sftp_backups = []
-        for backup in sftp_suitable_backups:
-            date = datetime.strptime(backup['path'].name.split('_')[0], '%Y-%m-%d-%H-%M').strftime('%Y-%m-%d %H:%M')
-            sftp_backups.append({
-                'source': 'sftp',
-                'date': date,
-                'filename': backup['path'].name,
-                'size': naturalsize(backup['attr'].st_size)
-            })
+class Backup:
+    def __init__(self, source: str, path: PurePath, size: int):
+        self.source = source
+        self.path = path
+        self.size = naturalsize(size)
 
-        return sftp_backups
+    @property
+    def date(self) -> str:
+        return datetime.strptime(self.filename.split('_')[0], '%Y-%m-%d-%H-%M').strftime('%Y-%m-%d %H:%M')
 
-    def _filter_only_supported_versions(self, backups: list) -> list:
-        suitable_backups = []
+    @property
+    def filename(self) -> str:
+        return self.path.name
+
+    @property
+    def mysql_version(self) -> str:
+        return self.path.stem.split('_')[-1]
+
+
+class BackupsList(UserList):
+    def __init__(self, xtrabackup_version: str):
+        super().__init__()
+
+        self._xtrabackup_version = xtrabackup_version
+
+    def append(self, backup: Backup) -> None:
+        if backup not in self and self._is_compatible(backup):
+            super().append(backup)
+
+        super().sort(key=lambda b: b.date, reverse=True)
+
+    def extend(self, backups: list) -> None:
         for backup in backups:
-            backup_mysql_version = version.parse(re.split('_', backup['path'].stem)[-1])
-            max_supported_mysql_version = version.parse(self._env.xtrabackup_version)
-            if backup_mysql_version <= max_supported_mysql_version:
-                suitable_backups.append(backup)
+            self.append(backup)
 
-        return suitable_backups
+    def _is_compatible(self, backup: Backup) -> bool:
+        return version.parse(backup.mysql_version) <= version.parse(self._xtrabackup_version)
 
-    def display_available_backups(self):
-        title = f"Available backups (supported by Percona XtraBackup {self._env.xtrabackup_version})"
+    def print(self) -> None:
+        title = f"Available backups (supported by Percona XtraBackup {self._xtrabackup_version})"
         table = Table(title=title)
 
-        table.add_column('Source', no_wrap=True)
+        table.add_column('No')
+        table.add_column('Source')
         table.add_column('Date', no_wrap=True)
         table.add_column('Filename', no_wrap=True)
         table.add_column('Size')
 
-        for backup in self.available_backups['local']:
-            table.add_row(backup['source'], backup['date'], backup['filename'], backup['size'])
+        for index, backup in enumerate(self):
+            table.add_row(str(index + 1), backup.source, backup.date, backup.filename, backup.size)
 
-        for backup in self.available_backups['sftp']:
-            table.add_row(backup['source'], backup['date'], backup['filename'], backup['size'])
+        return rprint(table)
 
-        rprint(table)
+    @property
+    def numbers(self) -> list:
+        return [str(i) for i in range(1, len(self) + 1)]
+
+    def __contains__(self, item: Backup) -> bool:
+        duplicate = next((backup for backup in self.data if backup.filename == item.filename), None)
+
+        return duplicate is not None
