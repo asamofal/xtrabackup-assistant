@@ -2,13 +2,12 @@
 
 import sys
 from argparse import ArgumentParser
-from pathlib import PurePath, Path
 
-from assistant import Environment, Assistant, SftpClient
+from assistant import Environment, Assistant
 from assistant.commands.command import Command
 from assistant.configs import Config
 from errors import ConfigError
-from utils import rprint, now
+from utils import rprint
 from utils.slack import Slack
 
 NAME = 'Percona XtraBackup Assistant'
