@@ -4,7 +4,8 @@ from pathlib import Path, PurePath
 from re import Pattern
 
 import paramiko
-from paramiko.ssh_exception import AuthenticationException, SSHException
+from paramiko.sftp import SFTPError
+from paramiko.ssh_exception import SSHException
 from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
 from assistant.configs.sftp_config import SftpConfig
@@ -21,7 +22,7 @@ class SftpClient:
 
             self.ssh_client.connect(hostname=config.host, username=config.user, password=config.password)
             self.sftp_client = self.ssh_client.open_sftp()
-        except (SSHException, AuthenticationException, socket.error) as e:
+        except (SSHException, socket.error) as e:
             raise RuntimeError(f"Failed to init the SFTP connection: {e}")
 
     def download(self, remote_path: PurePath, local_path: Path, display_progress=True):
