@@ -26,26 +26,43 @@ class SftpClient:
             raise RuntimeError(f"Failed to init the SFTP connection: {e}")
 
     def download(self, remote_path: PurePath, local_path: Path, display_progress=True):
-        if display_progress:
-            with Progress(
-                TextColumn('[blue][SFTP][/blue]'),
-                SpinnerColumn(),
-                TextColumn('[progress.description]{task.description}'),
-                BarColumn(),
-                DownloadColumn(),
-                TransferSpeedColumn(),
-                transient=True
-            ) as progress:
-                file_size = self.sftp_client.stat(str(remote_path)).st_size
-                downloading = progress.add_task('[blue]Downloading...', total=file_size)
+        if not local_path.parent.exists():
+            local_path.parent.mkdir(parents=True)
 
-                self.sftp_client.get(
-                    str(remote_path),
-                    str(local_path),
-                    lambda transferred, total: progress.update(downloading, completed=transferred)
-                )
-        else:
-            self.sftp_client.get(str(remote_path), str(local_path))
+        try:
+            if display_progress:
+                with Progress(
+                    TextColumn('[blue][SFTP][/blue]'),
+                    SpinnerColumn(),
+                    TextColumn('[progress.description]{task.description}'),
+                    BarColumn(),
+                    DownloadColumn(),
+                    TransferSpeedColumn(),
+                    transient=True
+                ) as progress:
+                    file_size = self.sftp_client.stat(str(remote_path)).st_size
+                    downloading = progress.add_task('[blue]Downloading...', total=file_size)
+
+                    self.sftp_client.get(
+                        str(remote_path),
+                        str(local_path),
+                        lambda transferred, total: progress.update(downloading, completed=transferred)
+                    )
+            else:
+                self.sftp_client.get(str(remote_path), str(local_path))
+        except (EOFError, SSHException, SFTPError, KeyboardInterrupt) as e:
+            rprint('[blue][SFTP][/blue] [italic]Error or terminate signal received. Cleaning up....')
+
+            self.close()
+
+            local_path.unlink()
+            if not any(local_path.parent.iterdir()):
+                local_path.parent.rmdir()
+
+            if isinstance(e, KeyboardInterrupt):
+                raise
+            else:
+                raise RuntimeError(f'SFTP download failed: {e}')
 
     def upload(self, local_path: Path, remote_path: PurePath, display_progress=True):
         remote_dir_path = PurePath(str(remote_path.parent).lstrip('/'))
