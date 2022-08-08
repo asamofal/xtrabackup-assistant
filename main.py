@@ -41,8 +41,8 @@ if __name__ == '__main__':
     parser = ArgumentParser(description=f"{NAME} v{VERSION}")
     parser.add_argument('--version', action='version', version=f"{NAME} v{VERSION}")
     subparsers = parser.add_subparsers(title='Available commands', required=True, dest='command')
-    subparsers.add_parser(Command.CREATE.value, help='create database dump')
-    subparsers.add_parser(Command.RESTORE.value, help='restore database dump')
+    subparsers.add_parser(str(Command.CREATE), help='create database dump')
+    subparsers.add_parser(str(Command.RESTORE), help='restore database dump')
 
     received_command = Command(parser.parse_args().command)
 
