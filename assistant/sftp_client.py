@@ -66,7 +66,7 @@ class SftpClient:
 
     def upload(self, local_path: Path, remote_path: PurePath, display_progress=True):
         remote_dir_path = PurePath(str(remote_path.parent).lstrip('/'))
-        self.mkdir_p(remote_dir_path)
+        self._mkdir_p(remote_dir_path)
 
         try:
             if display_progress:
