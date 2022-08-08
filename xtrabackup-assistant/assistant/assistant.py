@@ -1,9 +1,9 @@
 import os
 import shutil
 
-from assistant import Environment
-from assistant.commands import Command, CreateCommand, RestoreCommand
-from assistant.configs import Config
+from .commands import Command, CreateCommand, RestoreCommand
+from configs import Config
+from models import Environment
 
 
 class Assistant:
@@ -26,6 +26,6 @@ class Assistant:
                 else:
                     os.remove(entry.path)
 
-        version_check_log = f"/tmp/percona-version-check"
+        version_check_log = '/tmp/percona-version-check'
         if os.path.exists(version_check_log):
             os.remove(version_check_log)

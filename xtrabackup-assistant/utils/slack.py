@@ -1,6 +1,6 @@
 import slack_notifications as slack
 
-from assistant.configs.slack_config import SlackConfig
+from configs import SlackConfig
 
 
 class Slack:

@@ -3,12 +3,11 @@
 import sys
 from argparse import ArgumentParser
 
-from assistant import Environment, Assistant
-from assistant.commands.command import Command
-from assistant.configs import Config
-from errors import ConfigError
-from utils import rprint
-from utils.slack import Slack
+from assistant import Assistant, Command
+from configs import Config
+from exceptions import ConfigError
+from models import Environment
+from utils import rprint, Slack
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = '1.0.0'

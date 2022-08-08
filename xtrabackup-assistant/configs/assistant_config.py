@@ -3,8 +3,8 @@ from pathlib import Path
 
 from rich.text import Text
 
-from assistant.configs import SftpConfig, SlackConfig, XtrabackupConfig
-from errors import ConfigError
+from configs import XtrabackupConfig, SftpConfig, SlackConfig
+from exceptions import ConfigError
 from utils import rprint
 
 

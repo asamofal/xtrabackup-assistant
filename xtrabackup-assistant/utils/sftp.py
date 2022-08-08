@@ -8,11 +8,11 @@ from paramiko.sftp import SFTPError
 from paramiko.ssh_exception import SSHException
 from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
-from assistant.configs.sftp_config import SftpConfig
+from configs import SftpConfig
 from utils.rich_print import rprint
 
 
-class SftpClient:
+class Sftp:
     def __init__(self, config: SftpConfig):
         try:
             self._config = config
@@ -95,7 +95,7 @@ class SftpClient:
             self.close()
 
             # create a new connection as a socket of the current is closed already
-            with SftpClient(self._config) as sftp:
+            with Sftp(self._config) as sftp:
                 sftp.delete(remote_path, ignore_errors=True)
                 if len(sftp.sftp_client.listdir(str(remote_path.parent))) == 0:
                     sftp.delete(remote_path.parent, ignore_errors=True)
@@ -150,7 +150,7 @@ class SftpClient:
         if self.ssh_client is not None:
             self.ssh_client.close()
 
-    def __enter__(self) -> "SftpClient":
+    def __enter__(self) -> "Sftp":
         return self
 
     def __exit__(self, e_type, value, traceback):

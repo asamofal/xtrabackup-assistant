@@ -1,9 +1,9 @@
 /*
 
 !.gitignore
-!main.py
+!xtrabackup-assistant/main.py
 !requirements.txt
-!assistant/configs
-!assistant
-!utils
+!xtrabackup-assistant/configs
+!xtrabackup-assistant
+!xtrabackup-assistant/utils
 !config.json.example

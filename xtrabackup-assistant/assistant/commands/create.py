@@ -4,13 +4,13 @@ import subprocess
 import tarfile
 from pathlib import Path, PurePath
 
+from humanize import naturalsize
 from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn
 from rich.text import Text
 
-from assistant import XtrabackupMessage, SftpClient, Environment
-from assistant.configs import Config
-from utils import now, rprint
-from humanize import naturalsize
+from configs import Config
+from models import Environment, XtrabackupMessage
+from utils import now, rprint, Sftp
 
 
 class CreateCommand:
@@ -117,7 +117,7 @@ class CreateCommand:
                 if len(os.listdir(backup_archive_dir_path)) == 0:
                     os.rmdir(backup_archive_path.parent)
 
-                raise KeyboardInterrupt
+                raise
 
             rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Archive created")
 
@@ -126,7 +126,7 @@ class CreateCommand:
     def _upload_to_sftp_storage(self) -> None:
         """ Upload tarball to SFTP backups storage """
 
-        with SftpClient(self._config.sftp) as sftp:
+        with Sftp(self._config.sftp) as sftp:
             rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
 
             try:
