@@ -91,7 +91,7 @@ class SftpClient:
             if ignore_errors is False:
                 raise e
 
-    def mkdir_p(self, remote_path: PurePath):
+    def _mkdir_p(self, remote_path: PurePath):
         """Make parent directories as needed"""
         dir_path = ''
         for dir_name in remote_path.parts:
