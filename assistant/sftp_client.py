@@ -89,17 +89,22 @@ class SftpClient:
                     )
             else:
                 self.sftp_client.put(str(local_path), str(remote_path))
-        except (EOFError, SSHException, KeyboardInterrupt):
+        except (EOFError, SSHException, KeyboardInterrupt) as e:
+            rprint('[blue][SFTP][/blue] [italic]Error or terminate signal received. Cleaning up....')
+
             self.close()
 
-            rprint('[blue][SFTP][/blue] [italic]Terminate signal received. Cleaning up....')
             # create a new connection as a socket of the current is closed already
             with SftpClient(self._config) as sftp:
                 sftp.delete(remote_path, ignore_errors=True)
                 if len(sftp.sftp_client.listdir(str(remote_path.parent))) == 0:
                     sftp.delete(remote_path.parent, ignore_errors=True)
 
-                raise KeyboardInterrupt
+            if isinstance(e, KeyboardInterrupt):
+                raise
+            else:
+                raise RuntimeError(f'SFTP upload failed: {e}')
+
     def delete(self, remote_path: PurePath, ignore_errors=False):
         try:
             path = str(remote_path)
