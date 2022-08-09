@@ -3,7 +3,7 @@ import json
 from rich.text import Text
 
 from configs import XtrabackupConfig, SftpConfig, SlackConfig
-from constants import ROOT_DIR, CONFIG_PATH, ALT_CONFIG_PATH
+from constants import CONFIG_PATH, ALT_CONFIG_PATH
 from exceptions import ConfigError
 from utils import rprint
 
