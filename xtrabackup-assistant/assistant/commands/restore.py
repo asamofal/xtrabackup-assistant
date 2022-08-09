@@ -7,7 +7,7 @@ from rich.prompt import IntPrompt
 from rich.text import Text
 
 from configs import Config
-from models import Environment, BackupList, Backup
+from common import Environment, BackupList, Backup
 from utils import rprint, now, Sftp
 
 

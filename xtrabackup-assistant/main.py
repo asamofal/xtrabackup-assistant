@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from assistant import Assistant, Command
 from configs import Config
 from exceptions import ConfigError
-from models import Environment
+from common import Environment
 from utils import rprint, Slack
 
 NAME = 'Percona XtraBackup Assistant'

@@ -9,7 +9,7 @@ from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskPr
 from rich.text import Text
 
 from configs import Config
-from models import Environment, XtrabackupMessage
+from common import Environment, XtrabackupMessage
 from utils import now, rprint, Sftp
 
 

@@ -3,7 +3,7 @@ import shutil
 
 from .commands import Command, CreateCommand, RestoreCommand
 from configs import Config
-from models import Environment
+from common import Environment
 
 
 class Assistant:
