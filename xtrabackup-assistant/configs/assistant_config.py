@@ -24,7 +24,7 @@ class Config:
             'required_fields': {'user', 'password'}
         },
         'sftp': {
-            'optional': False,
+            'optional': True,
             'required_fields': {'host', 'user', 'password'}
         },
         'slack': {
