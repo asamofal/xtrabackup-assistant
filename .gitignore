@@ -1,9 +1,9 @@
 /*
 
 !.gitignore
-
 !xtrabackup-assistant
-
 !requirements.txt
 !config.json.example
 !data
+!logs
+
