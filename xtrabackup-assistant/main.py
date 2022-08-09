@@ -28,7 +28,7 @@ def main(command: Command):
     except RuntimeError as e:
         if config.slack is not None:
             Slack(config.slack).notify(project=config.project, error=e)
-        raise RuntimeError(e)
+        raise
 
 
 if __name__ == '__main__':
