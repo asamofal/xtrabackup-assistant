@@ -4,9 +4,9 @@ import sys
 from argparse import ArgumentParser
 
 from assistant import Assistant, Command
+from common import Environment
 from configs import Config
 from exceptions import ConfigError
-from common import Environment
 from utils import rprint, Slack
 
 NAME = 'Percona XtraBackup Assistant'
@@ -27,7 +27,7 @@ def main(command: Command):
         assistant.execute(command)
     except RuntimeError as e:
         if config.slack is not None:
-            Slack(config.slack).notify(project=config.project, error=e)
+            Slack(config.slack).notify(project=config.project_name, error=e)
         raise
 
 

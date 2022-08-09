@@ -1,21 +1,16 @@
 import json
-from pathlib import Path
 
 from rich.text import Text
 
 from configs import XtrabackupConfig, SftpConfig, SlackConfig
+from constants import ROOT_DIR, CONFIG_PATH, ALT_CONFIG_PATH
 from exceptions import ConfigError
 from utils import rprint
 
 
 class Config:
-    BACKUPS_PATH: Path = Path('/backups')
-    TEMP_DIR_PATH: Path = Path('/tmp/xtrabackup')
-    XTRABACKUP_CONFIG_PATH: Path = Path('/run/secrets/xtrabackup_config.json')
-    ERROR_LOG_DIR_PATH: Path = Path('/var/log/xtrabackup')
-
     CONFIG_STRUCTURE: dict = {
-        'project': {
+        'project_name': {
             'optional': False,
             'required_fields': {}
         },
@@ -33,7 +28,7 @@ class Config:
         }
     }
 
-    project: str = None
+    project_name: str = None
     xtrabackup: XtrabackupConfig = None
     sftp: SftpConfig = None
     slack: SlackConfig = None
@@ -41,18 +36,20 @@ class Config:
     _raw_config: dict = None
 
     def __init__(self):
+        config_path = CONFIG_PATH if CONFIG_PATH.exists() else ALT_CONFIG_PATH
+
         try:
-            with open(self.XTRABACKUP_CONFIG_PATH, 'r') as config_file:
+            with open(config_path, 'r') as config_file:
                 try:
                     self._raw_config = json.load(config_file)
                 except json.decoder.JSONDecodeError:
                     raise ConfigError('Failed to parse the config. Is it valid JSON?')
         except FileNotFoundError:
-            raise ConfigError(f"Config file is missing: [default]{self.XTRABACKUP_CONFIG_PATH}")
+            raise ConfigError(f"Config file is missing: [default]{CONFIG_PATH} or {ALT_CONFIG_PATH}")
 
         self.validate_config()
 
-        self.project = self._raw_config['project']
+        self.project_name = self._raw_config['project_name']
         self.xtrabackup = XtrabackupConfig(**self._raw_config['xtrabackup'])
         if 'sftp' in self._raw_config:
             self.sftp = SftpConfig(**self._raw_config['sftp'])

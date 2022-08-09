@@ -8,8 +8,9 @@ from humanize import naturalsize
 from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn
 from rich.text import Text
 
-from configs import Config
 from common import Environment, XtrabackupMessage
+from configs import Config
+from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, ERROR_LOG_DIR_PATH
 from utils import now, rprint, Sftp
 
 
@@ -42,9 +43,9 @@ class CreateCommand:
         """ Create compressed dump (xbstream) with log file in temp dir """
 
         backup_timestamp = now('%Y-%m-%d-%H-%M')
-        backup_file_name = f"{backup_timestamp}_{self._config.project}_{self._env.mysql_version}"
-        temp_backup_file_path = Path(Config.TEMP_DIR_PATH, f"{backup_file_name}.xbstream")
-        temp_log_path = Path(Config.TEMP_DIR_PATH, 'xtrabackup.log')
+        backup_file_name = f"{backup_timestamp}_{self._config.project_name}_{self._env.mysql_version}"
+        temp_backup_file_path = Path(TEMP_DIR_PATH, f"{backup_file_name}.xbstream")
+        temp_log_path = Path(TEMP_DIR_PATH, 'xtrabackup.log')
 
         with open(temp_backup_file_path, 'wb') as backup_file, open(temp_log_path, 'w') as log_file:
             command_options = (
@@ -56,7 +57,7 @@ class CreateCommand:
                 f"--user={self._config.xtrabackup.user}",
                 f"--password={self._config.xtrabackup.password}",
                 '--host=127.0.0.1',
-                f"--target-dir={Config.TEMP_DIR_PATH}"
+                f"--target-dir={TEMP_DIR_PATH}"
             )
             command = subprocess.Popen(['xtrabackup', *command_options], stdout=backup_file, stderr=subprocess.PIPE)
             for line in command.stderr:
@@ -68,7 +69,7 @@ class CreateCommand:
             return_code = command.wait()
 
         if return_code != 0:
-            error_log_path = Path(Config.ERROR_LOG_DIR_PATH, f"{backup_timestamp}-error.log")
+            error_log_path = Path(ERROR_LOG_DIR_PATH, f"{backup_timestamp}-error.log")
             shutil.move(temp_log_path, error_log_path)
 
             raise RuntimeError(f"Failed to create a backup! Error log: [default]{str(error_log_path)}")
@@ -80,7 +81,7 @@ class CreateCommand:
         """ Create a tarball for backup and log files """
 
         # prepare a directory for today's backups
-        backup_archive_dir_path = Path(f"{Config.BACKUPS_PATH}/{now('%Y')}/{now('%m')}")
+        backup_archive_dir_path = Path(f"{BACKUPS_DIR_PATH}/{now('%Y')}/{now('%m')}")
         if not os.path.exists(backup_archive_dir_path):
             os.makedirs(backup_archive_dir_path)
 

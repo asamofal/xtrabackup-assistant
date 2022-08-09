@@ -1,9 +1,10 @@
 {
+  "project_name": "",
   "mysql": {
     "user": "",
     "password": "",
     "parallel": 5
-  }
+  },
   "sftp": {
     "host": "",
     "user": "",
