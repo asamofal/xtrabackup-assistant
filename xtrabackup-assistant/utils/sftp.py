@@ -9,7 +9,7 @@ from paramiko.ssh_exception import SSHException
 from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
 from configs import SftpConfig
-from utils.rich_print import rprint
+from utils import rprint
 
 
 class Sftp:

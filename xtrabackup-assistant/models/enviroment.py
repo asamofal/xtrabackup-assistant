@@ -3,7 +3,7 @@ import subprocess
 
 from rich.text import Text
 
-from utils.rich_print import rprint
+from utils import rprint
 
 
 class Environment:
