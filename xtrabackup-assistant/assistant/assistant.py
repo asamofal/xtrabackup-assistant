@@ -20,7 +20,7 @@ class Assistant:
 
     @staticmethod
     def clear_temp_dir() -> None:
-        with os.scandir(str(Config.TEMP_DIR_PATH)) as entries:
+        with os.scandir(str(TEMP_DIR_PATH)) as entries:
             for entry in entries:
                 if entry.is_dir() and not entry.is_symlink():
                     shutil.rmtree(entry.path)
