@@ -57,8 +57,9 @@ class RestoreCommand:
             if self._config.sftp is not None:
                 self.backup_list.extend(self._sftp_this_year_backups())
 
-    def _local_this_year_backups(self) -> list:
-        current_year_backups_path = Path(self._config.BACKUPS_PATH, now('%Y'))
+    @staticmethod
+    def _local_this_year_backups() -> list:
+        current_year_backups_path = Path(BACKUPS_DIR_PATH, now('%Y'))
         return list(map(
             lambda path: Backup(source='local', path=path, size=path.stat().st_size),
             current_year_backups_path.rglob('*.tar')
@@ -76,4 +77,4 @@ class RestoreCommand:
         with Sftp(self._config.sftp) as sftp:
             backup_year = datetime.strptime(backup.date, '%Y-%m-%d %H:%M').strftime('%Y')
             backup_month = datetime.strptime(backup.date, '%Y-%m-%d %H:%M').strftime('%m')
-            sftp.download(backup.path, Path(Config.BACKUPS_PATH, backup_year, backup_month, backup.path.name))
+            sftp.download(backup.path, Path(BACKUPS_DIR_PATH, backup_year, backup_month, backup.path.name))
