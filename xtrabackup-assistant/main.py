@@ -50,7 +50,7 @@ if __name__ == '__main__':
     subparsers.add_parser(str(Command.RESTORE), help='restore database dump')
 
     args = parser.parse_args()
-    received_command = Command.CREATE_NO_UPLOAD if args.no_upload else Command(args.command)
+    received_command = Command.CREATE_NO_UPLOAD if hasattr(args, 'no_upload') else Command(args.command)
 
     try:
         main(received_command)
