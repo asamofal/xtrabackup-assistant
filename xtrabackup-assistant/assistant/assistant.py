@@ -24,9 +24,5 @@ class Assistant:
             for entry in entries:
                 if entry.is_dir() and not entry.is_symlink():
                     shutil.rmtree(entry.path)
-                else:
+                elif entry.name != '.gitignore':
                     os.remove(entry.path)
-
-        version_check_log = '/tmp/percona-version-check'
-        if os.path.exists(version_check_log):
-            os.remove(version_check_log)
