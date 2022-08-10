@@ -108,7 +108,8 @@ class CreateCommand:
 
             try:
                 with progress.open(
-                    self._temp_backup_file_path, 'rb',
+                    file=self._temp_backup_file_path,
+                    mode='rb',
                     description='[blue]Creating archive...'
                 ) as backup:
                     with tarfile.open(backup_archive_path, 'w') as tar:
