@@ -1,6 +1,6 @@
 from pathlib import Path
 
-ROOT_DIR: Path = Path().parent.resolve()
+ROOT_DIR: Path = Path(__file__).parent.parent.absolute()
 
 BACKUPS_DIR_PATH: Path = Path(ROOT_DIR, 'data/backups')
 TEMP_DIR_PATH: Path = Path(ROOT_DIR, 'data/tmp')
