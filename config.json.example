@@ -1,6 +1,6 @@
 {
   "project_name": "",
-  "mysql": {
+  "xtrabackup": {
     "user": "",
     "password": "",
     "parallel": 5
