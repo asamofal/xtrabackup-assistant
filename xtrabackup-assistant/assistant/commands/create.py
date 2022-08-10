@@ -18,12 +18,12 @@ class CreateCommand:
     def __init__(self, env: Environment, config: Config):
         self._env = env
         self._config = config
-        
+
         self._temp_backup_file_path = None
         self._temp_log_path = None
         self._archive_path = None
 
-    def execute(self) -> None:
+    def execute(self, is_upload: bool = True) -> None:
         self._create_backup()
         self._create_archive()
 
@@ -35,9 +35,16 @@ class CreateCommand:
             (f"({naturalsize(self._archive_path.stat().st_size)})", 'default italic')
         ))
 
-        # upload to SFTP backups storage if config provided
-        if self._config.sftp is not None:
-            self._upload_to_sftp_storage()
+        if is_upload:
+            if self._config.sftp is not None:
+                self._upload_to_sftp_storage()
+            else:
+                rprint(Text.assemble(
+                    ('[Assistant] ', 'blue'),
+                    (f"[{now('%Y-%m-%d %H:%M:%S')}] ", 'default'),
+                    ("'sftp' option is missing in the config. Upload is skipped. ", 'orange3'),
+                    ("To avoid this warning use additional option: 'create --no-upload'", 'orange3'),
+                ))
 
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
@@ -101,8 +108,8 @@ class CreateCommand:
 
             try:
                 with progress.open(
-                        self._temp_backup_file_path, 'rb',
-                        description='[blue]Creating archive...'
+                    self._temp_backup_file_path, 'rb',
+                    description='[blue]Creating archive...'
                 ) as backup:
                     with tarfile.open(backup_archive_path, 'w') as tar:
                         # add backup file

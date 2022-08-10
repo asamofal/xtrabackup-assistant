@@ -13,8 +13,9 @@ class Assistant:
         self._config = config
 
     def execute(self, command: Command) -> None:
-        if command is Command.CREATE:
-            CreateCommand(self._env, self._config).execute()
+        if command in [Command.CREATE, Command.CREATE_NO_UPLOAD]:
+            is_upload = command is Command.CREATE
+            CreateCommand(self._env, self._config).execute(is_upload)
         elif command is Command.RESTORE:
             RestoreCommand(self._env, self._config).execute()
 

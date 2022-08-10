@@ -40,10 +40,17 @@ if __name__ == '__main__':
     parser = ArgumentParser(description=f"{NAME} v{VERSION}")
     parser.add_argument('--version', action='version', version=f"{NAME} v{VERSION}")
     subparsers = parser.add_subparsers(title='Available commands', required=True, dest='command')
-    subparsers.add_parser(str(Command.CREATE), help='create database dump')
+    create_subparser = subparsers.add_parser(str(Command.CREATE), help='create database dump')
+    create_subparser.add_argument(
+        '--no-upload',
+        action='store_true',
+        help="don't upload a dump to SFTP storage",
+        dest='no_upload'
+    )
     subparsers.add_parser(str(Command.RESTORE), help='restore database dump')
 
-    received_command = Command(parser.parse_args().command)
+    args = parser.parse_args()
+    received_command = Command.CREATE_NO_UPLOAD if args.no_upload else Command(args.command)
 
     try:
         main(received_command)
