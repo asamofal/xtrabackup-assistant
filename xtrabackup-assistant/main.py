@@ -36,7 +36,7 @@ if __name__ == '__main__':
         rprint("[red]Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
         sys.exit(1)
 
-    # register arguments from a command line
+    # register arguments for CLI
     parser = ArgumentParser(description=f"{NAME} v{VERSION}")
     parser.add_argument('--version', action='version', version=f"{NAME} v{VERSION}")
     subparsers = parser.add_subparsers(title='Available commands', required=True, dest='command')
