@@ -6,8 +6,9 @@ from rich.progress import Progress, TextColumn, SpinnerColumn
 from rich.prompt import IntPrompt
 from rich.text import Text
 
-from configs import Config
 from common import Environment, BackupList, Backup
+from configs import Config
+from constants import BACKUPS_DIR_PATH
 from utils import rprint, now, Sftp
 
 
