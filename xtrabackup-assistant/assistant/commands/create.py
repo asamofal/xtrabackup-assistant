@@ -98,20 +98,16 @@ class CreateCommand:
         with Progress(
             TextColumn('[blue]\\[tar][/blue]'),
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn('[blue]Creating archive...'),
             BarColumn(),
             TaskProgressColumn(),
             DownloadColumn(),
             transient=True
         ) as progress:
-            rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Start creating archive.")
+            rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Start creating archive")
 
             try:
-                with progress.open(
-                    file=self._temp_backup_file_path,
-                    mode='rb',
-                    description='[blue]Creating archive...'
-                ) as backup:
+                with progress.open(self._temp_backup_file_path, 'rb',) as backup:
                     with tarfile.open(backup_archive_path, 'w') as tar:
                         # add backup file
                         file_info = tarfile.TarInfo(self._temp_backup_file_path.name)
@@ -119,7 +115,6 @@ class CreateCommand:
                         tar.addfile(file_info, fileobj=backup)
                         # add log file
                         tar.add(self._temp_log_path, arcname=self._temp_log_path.name)
-                progress.stop()
             except KeyboardInterrupt:
                 if os.path.exists(backup_archive_path):
                     os.remove(backup_archive_path)
@@ -127,6 +122,8 @@ class CreateCommand:
                     os.rmdir(backup_archive_path.parent)
 
                 raise
+
+            progress.stop()
 
             rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Archive created")
 
