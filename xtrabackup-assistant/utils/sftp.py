@@ -110,9 +110,9 @@ class Sftp:
             path = str(remote_path)
             is_dir = stat.S_ISDIR(self.sftp_client.stat(path).st_mode)
             self.sftp_client.rmdir(path) if is_dir else self.sftp_client.remove(path)
-        except IOError as e:
+        except IOError:
             if ignore_errors is False:
-                raise e
+                raise
 
     def _mkdir_p(self, remote_path: PurePath):
         """Make parent directories as needed"""
