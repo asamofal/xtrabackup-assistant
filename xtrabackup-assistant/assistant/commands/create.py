@@ -120,7 +120,6 @@ class CreateCommand:
                     os.remove(backup_archive_path)
                 if len(os.listdir(backup_archive_dir_path)) == 0:
                     os.rmdir(backup_archive_path.parent)
-
                 raise
 
             progress.stop()
