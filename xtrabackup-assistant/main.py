@@ -6,8 +6,9 @@ from argparse import ArgumentParser
 from assistant import Assistant, Command
 from common import Environment
 from configs import Config
+from constants import TEMP_DIR_PATH
 from exceptions import ConfigError
-from utils import rprint, Slack
+from utils import rprint, Slack, clear_dir
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = '1.0.0'
@@ -64,4 +65,4 @@ if __name__ == '__main__':
         print('\rTerminating...')
         sys.exit()
     finally:
-        Assistant.clear_temp_dir()
+        clear_dir(TEMP_DIR_PATH)
