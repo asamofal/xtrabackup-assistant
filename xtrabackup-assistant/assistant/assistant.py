@@ -1,5 +1,6 @@
 from common import Environment
 from configs import Config
+from utils import Slack
 from .commands import Command, CreateCommand, RestoreCommand
 
 
@@ -10,7 +11,12 @@ class Assistant:
 
     def execute(self, command: Command) -> None:
         if command in [Command.CREATE, Command.CREATE_NO_UPLOAD]:
-            is_upload = command is Command.CREATE
-            CreateCommand(self._env, self._config).execute(is_upload)
+            try:
+                is_upload = command is Command.CREATE
+                CreateCommand(self._env, self._config).execute(is_upload)
+            except RuntimeError as e:
+                if self._config.slack is not None:
+                    Slack(self._config.slack).notify(project=self._config.project_name, error=e)
+                raise
         elif command is Command.RESTORE:
             RestoreCommand(self._env, self._config).execute()

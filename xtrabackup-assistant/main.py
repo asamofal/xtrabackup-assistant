@@ -8,7 +8,7 @@ from common import Environment
 from configs import Config
 from constants import TEMP_DIR_PATH
 from exceptions import ConfigError
-from utils import rprint, Slack, clear_dir
+from utils import rprint, clear_dir
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = '1.0.0'
@@ -20,16 +20,11 @@ def main(command: Command):
     config = Config()
     config.print_ready_message()
 
-    try:
-        env = Environment()
-        env.print_versions()
+    env = Environment()
+    env.print_versions()
 
-        assistant = Assistant(env, config)
-        assistant.execute(command)
-    except RuntimeError as e:
-        if config.slack is not None:
-            Slack(config.slack).notify(project=config.project_name, error=e)
-        raise
+    assistant = Assistant(env, config)
+    assistant.execute(command)
 
 
 if __name__ == '__main__':
