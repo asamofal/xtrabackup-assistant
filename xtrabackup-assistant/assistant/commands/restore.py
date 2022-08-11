@@ -1,8 +1,11 @@
+import os
 import re
 import shutil
+import subprocess
 import tarfile
 from datetime import datetime
 from pathlib import Path, PurePath
+from typing import Union
 
 from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn
 from rich.prompt import IntPrompt
@@ -10,8 +13,8 @@ from rich.text import Text
 
 from common import Environment, BackupList, Backup
 from configs import Config
-from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH
-from utils import rprint, now, Sftp, echo
+from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, RESTORE_DIR_PATH
+from utils import now, Sftp, echo, clear_dir
 
 
 class RestoreCommand:
@@ -20,7 +23,7 @@ class RestoreCommand:
         self._config = config
 
         self.backup_list = BackupList(self._env.xtrabackup_version)
-        self.target_backup = None
+        self.target_backup: Union[Backup, None] = None
 
     def execute(self) -> None:
         # get available backups
@@ -40,7 +43,7 @@ class RestoreCommand:
         self.target_backup = self.backup_list[target_backup_no - 1]
 
         echo(
-            Text.assemble(('Target backup: ', 'green3'), (self.target_backup.filename, 'default')),
+            Text.assemble(('Target backup: ', 'green3'), (self.target_backup.filename, 'italic')),
             time=False
         )
 
@@ -48,7 +51,7 @@ class RestoreCommand:
             self._download_backup(self.target_backup)
 
         self._extract_backup_from_archive()
-        # self._extract_xbstream()
+        self._extract_xbstream()
         # self._decompress_backup()
         # self._prepare_backup()
 
@@ -97,7 +100,7 @@ class RestoreCommand:
             DownloadColumn(),
             transient=True
         ) as progress:
-            echo('Start extracting backup file from the archive.', 'tar')
+            echo('Start extracting backup file from the archive', 'tar')
 
             with tarfile.open(self.target_backup.path, 'r:') as tar:
                 backup_file = next(
@@ -118,15 +121,42 @@ class RestoreCommand:
                         shutil.copyfileobj(source, destination)
             progress.stop()
 
-            echo('Backup file extracted.', 'tar')
-
-    def _decompress_backup(self):
-        pass
+            echo('Backup file extracted', 'tar')
 
     def _extract_xbstream(self) -> None:
-        echo()
-        rprint(Text.assemble(
-            ('[tar] ', 'blue'),
-            (f"[{now('%Y-%m-%d %H:%M:%S')}] ", 'default'),
-            ('Backup file extracted.', 'default')
-        ))
+        with Progress(
+            TextColumn('[blue]\\[xbstream][/blue]'),
+            SpinnerColumn(),
+            TextColumn('[blue]Extracting...'),
+            transient=True
+        ) as progress:
+            echo('Start extracting files from xbstream')
+
+            target_backup_name = self.target_backup.path.stem
+            xbstream_file_path = Path(TEMP_DIR_PATH, f'{target_backup_name}.xbstream')
+
+            try:
+                with progress.open(xbstream_file_path, 'rb') as xbstream_file:
+                    command_options = (
+                        f'--parallel={self._config.xtrabackup.parallel}',
+                        '-C',
+                        RESTORE_DIR_PATH,
+                        '-x',
+                    )
+                    command = subprocess.run(
+                        ['xbstream', *command_options],
+                        stdin=xbstream_file,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    if command.returncode != 0:
+                        raise RuntimeError('Failed to extract xbstream file')
+            except FileNotFoundError:
+                raise RuntimeError(f'Failed to extract from xbstream: file not found {xbstream_file_path}')
+            except KeyboardInterrupt:
+                clear_dir(RESTORE_DIR_PATH)
+                raise
+
+            progress.stop()
+
+            echo('Files from xbstream extracted')
