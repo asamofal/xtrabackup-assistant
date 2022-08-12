@@ -1,13 +1,15 @@
-import os
 import re
 import shutil
 import subprocess
 import tarfile
+import threading
 from datetime import datetime
 from pathlib import Path, PurePath
+from time import sleep
 from typing import Union
 
-from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn
+from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn, \
+    MofNCompleteColumn
 from rich.prompt import IntPrompt
 from rich.text import Text
 
@@ -50,10 +52,16 @@ class RestoreCommand:
         if self.target_backup.source == 'sftp':
             self._download_backup(self.target_backup)
 
-        self._extract_backup_from_archive()
-        self._extract_xbstream()
-        # self._decompress_backup()
-        # self._prepare_backup()
+        try:
+            self._extract_xbstream_file_from_archive()
+            self._extract_qp_files_from_xbstream_file()
+            self._decompress_qp_files()
+            self._prepare_mysql_files()
+        except (RuntimeError, KeyboardInterrupt) as e:
+            clear_dir(RESTORE_DIR_PATH)
+
+            if isinstance(e, KeyboardInterrupt):
+                raise
 
     def _set_backup_list(self):
         with Progress(
@@ -65,8 +73,8 @@ class RestoreCommand:
 
             self.backup_list.extend(self._local_this_year_backups())
 
-            # if self._config.sftp is not None:
-            #     self.backup_list.extend(self._sftp_this_year_backups())
+            if self._config.sftp is not None:
+                self.backup_list.extend(self._sftp_this_year_backups())
 
     @staticmethod
     def _local_this_year_backups() -> list:
@@ -90,52 +98,50 @@ class RestoreCommand:
             backup_month = datetime.strptime(backup.date, '%Y-%m-%d %H:%M').strftime('%m')
             sftp.download(backup.path, Path(BACKUPS_DIR_PATH, backup_year, backup_month, backup.path.name))
 
-    def _extract_backup_from_archive(self) -> None:
-        with Progress(
-            TextColumn('[blue]\\[tar][/blue]'),
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            DownloadColumn(),
-            transient=True
-        ) as progress:
-            echo('Start extracting backup file from the archive', 'tar')
+    def _extract_xbstream_file_from_archive(self) -> None:
+        echo('Start extracting xbstream file from the archive', 'tar')
 
-            with tarfile.open(self.target_backup.path, 'r:') as tar:
-                backup_file = next(
-                    (backup for backup in tar.getmembers() if re.search('.xbstream$', backup.name)),
-                    None
-                )
-                if backup_file is None:
-                    raise RuntimeError('Not found .xbstream backup file in the target archive')
+        with tarfile.open(self.target_backup.path, 'r:') as tar:
+            backup_file = next(
+                (backup for backup in tar.getmembers() if re.search('.xbstream$', backup.name)),
+                None
+            )
+            if backup_file is None:
+                raise RuntimeError('Not found .xbstream backup file in the target archive')
 
+            with Progress(
+                TextColumn('[blue]\\[tar][/blue]'),
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                DownloadColumn(),
+                transient=True
+            ) as progress:
                 # extract with progress bar
                 # noinspection PyTypeChecker
                 with progress.wrap_file(
                     file=tar.extractfile(backup_file),
                     total=backup_file.size,
-                    description='[blue]Extracting a backup file...'
+                    description='[blue]Extracting xbstream file...'
                 ) as source:
                     with open(Path(TEMP_DIR_PATH, backup_file.name), 'wb') as destination:
                         shutil.copyfileobj(source, destination)
-            progress.stop()
 
-            echo('Backup file extracted', 'tar')
+        echo('xbstream file extracted', 'tar')
 
-    def _extract_xbstream(self) -> None:
+    def _extract_qp_files_from_xbstream_file(self) -> None:
+        echo('Start extracting qpress files from xbstream file', 'xbstream')
+
         with Progress(
             TextColumn('[blue]\\[xbstream][/blue]'),
             SpinnerColumn(),
-            TextColumn('[blue]Extracting...'),
+            TextColumn('[blue]Extracting qpress files...'),
             transient=True
         ) as progress:
-            echo('Start extracting files from xbstream')
-
-            target_backup_name = self.target_backup.path.stem
-            xbstream_file_path = Path(TEMP_DIR_PATH, f'{target_backup_name}.xbstream')
-
             try:
+                target_backup_name = self.target_backup.path.stem
+                xbstream_file_path = Path(TEMP_DIR_PATH, f'{target_backup_name}.xbstream')
                 with progress.open(xbstream_file_path, 'rb') as xbstream_file:
                     command_options = (
                         f'--parallel={self._config.xtrabackup.parallel}',
@@ -150,13 +156,86 @@ class RestoreCommand:
                         stderr=subprocess.PIPE
                     )
                     if command.returncode != 0:
-                        raise RuntimeError('Failed to extract xbstream file')
+                        raise RuntimeError('Failed to extract files from xbstream')
             except FileNotFoundError:
                 raise RuntimeError(f'Failed to extract from xbstream: file not found {xbstream_file_path}')
-            except KeyboardInterrupt:
-                clear_dir(RESTORE_DIR_PATH)
-                raise
 
-            progress.stop()
+        echo('qpress files extracted', 'xbstream')
 
-            echo('Files from xbstream extracted')
+    # noinspection PyMethodMayBeStatic
+    def _decompress_qp_files(self) -> None:
+        echo('Start decompressing qpress files', 'xtrabackup')
+
+        progress_thread = threading.Thread(
+            target=print_progress_decompressing_qp_files,
+            name='decompression_progress_tread')
+        progress_thread.start()
+
+        command_options = (
+            '--decompress',
+            f'--target-dir={RESTORE_DIR_PATH}',
+            f'--parallel={self._config.xtrabackup.parallel}',
+            '--decompress-threads=5',
+            '--remove-original'
+        )
+        command = subprocess.run(
+            ['xtrabackup', *command_options],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+
+        # wait until progress disappear
+        progress_thread.join()
+
+        if command.returncode != 0:
+            raise RuntimeError('Failed to decompress qpress files')
+
+        echo('qpress files decompressed', 'xtrabackup')
+
+    @staticmethod
+    def _prepare_mysql_files() -> None:
+        echo('Start preparing mysql files', 'xtrabackup')
+
+        with Progress(
+            TextColumn('[blue]\\[xtrabackup][/blue]'),
+            SpinnerColumn(),
+            TextColumn('[progress.description]{task.description}'),
+            transient=True
+        ) as progress:
+            progress.add_task('[blue]Preparing mysql files...')
+
+            command_options = (
+                '--prepare',
+                f'--target-dir={RESTORE_DIR_PATH}'
+            )
+            command = subprocess.run(
+                ['xtrabackup', *command_options],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            if command.returncode != 0:
+                raise RuntimeError('Failed to prepare backup files')
+
+        echo('mysql files are ready', 'xtrabackup')
+
+
+def print_progress_decompressing_qp_files():
+    with Progress(
+        TextColumn('[blue]\\[xtrabackup][/blue]'),
+        SpinnerColumn(),
+        TextColumn('[progress.description]{task.description}'),
+        BarColumn(),
+        MofNCompleteColumn(),
+        transient=True
+    ) as progress:
+        qp_files_total_count = len(list(RESTORE_DIR_PATH.rglob('*.qp')))
+        decompressing = progress.add_task('[blue]Decompressing qpress files...', total=qp_files_total_count)
+
+        qp_files_left_count = qp_files_total_count
+        while qp_files_left_count > 0:
+            qp_files_left_count = len(list(RESTORE_DIR_PATH.rglob('*.qp')))
+            completed = qp_files_total_count - qp_files_left_count
+            # -1 needs for the last file
+            completed = completed - 1 if completed > 0 else completed
+            progress.update(decompressing, completed=completed)
+            sleep(1)
