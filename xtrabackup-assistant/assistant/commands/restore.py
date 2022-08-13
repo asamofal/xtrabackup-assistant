@@ -8,6 +8,7 @@ from pathlib import Path, PurePath
 from time import sleep
 from typing import Union
 
+from rich.panel import Panel
 from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn, \
     MofNCompleteColumn
 from rich.prompt import IntPrompt
@@ -62,6 +63,20 @@ class RestoreCommand:
 
             if isinstance(e, KeyboardInterrupt):
                 raise
+
+        echo(Panel.fit(
+            Text.assemble(
+                ('The backup is ready to be imported to the MySQL server!\n', 'green3 bold'),
+                'The next time the container is started you will be asked to import the new data.\n',
+                'Please restart the container and be ready to confirm the data replacement ',
+                'before the MySQL server is started.\n\n',
+                ("If you care about the current data, don't forget to make a backup, otherwise it will be lost.",
+                 'italic'),
+                justify='center'
+            ),
+            title='SUCCESS',
+            border_style='green3'
+        ))
 
     def _set_backup_list(self):
         with Progress(
