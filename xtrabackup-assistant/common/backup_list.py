@@ -4,7 +4,7 @@ from packaging import version
 from rich.table import Table
 
 from .backup import Backup
-from utils import rprint
+from utils import echo
 
 
 class BackupList(UserList):
@@ -39,7 +39,7 @@ class BackupList(UserList):
         for index, backup in enumerate(self):
             table.add_row(str(index + 1), backup.source, backup.date, backup.filename, backup.size)
 
-        return rprint(table)
+        return echo(table)
 
     @property
     def available_numbers(self) -> list:

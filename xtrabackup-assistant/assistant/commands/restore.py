@@ -175,7 +175,7 @@ class RestoreCommand:
             except FileNotFoundError:
                 raise RuntimeError(f'Failed to extract from xbstream: file not found {xbstream_file_path}')
 
-        echo('qpress files extracted', 'xbstream')
+        echo('qpress files extracted', author='xbstream')
 
     # noinspection PyMethodMayBeStatic
     def _decompress_qp_files(self) -> None:

@@ -11,7 +11,7 @@ from rich.text import Text
 from common import Environment, XtrabackupMessage
 from configs import Config
 from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, ERROR_LOG_DIR_PATH
-from utils import now, rprint, Sftp
+from utils import now, Sftp, echo
 
 
 class CreateCommand:
@@ -27,24 +27,24 @@ class CreateCommand:
         self._create_backup()
         self._create_archive()
 
-        rprint(Text.assemble(
-            ('[Assistant] ', 'blue'),
-            (f"[{now('%Y-%m-%d %H:%M:%S')}] ", 'default'),
-            ('Backup successfully created: ', 'green3'),
-            (f"{str(self._archive_path)} ", 'default italic'),
-            (f"({naturalsize(self._archive_path.stat().st_size)})", 'default italic')
-        ))
+        echo(
+            Text.assemble(
+                ('Backup successfully created: ', 'green3'),
+                (f"{str(self._archive_path)} ", 'italic'),
+                (f"({naturalsize(self._archive_path.stat().st_size)})", 'italic')
+            ),
+            time=False
+        )
 
         if is_upload:
             if self._config.sftp is not None:
                 self._upload_to_sftp_storage()
             else:
-                rprint(Text.assemble(
-                    ('[Assistant] ', 'blue'),
-                    (f"[{now('%Y-%m-%d %H:%M:%S')}] ", 'default'),
-                    ("'sftp' option is missing in the config. Upload is skipped. ", 'orange3'),
-                    ("To avoid this warning use additional option: 'create --no-upload'", 'orange3'),
-                ))
+                echo(
+                    "'sftp' option is missing in the config. Upload is skipped. "
+                    "To avoid this warning use additional option: 'create --no-upload'",
+                    style='orange3'
+                )
 
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
@@ -71,7 +71,7 @@ class CreateCommand:
                 message = XtrabackupMessage(str(line, 'utf-8'))
 
                 log_file.write(f"{message.formatted}\n")
-                rprint(f"[blue][ExtraBackup][/blue] {message.formatted}")
+                echo(message.formatted, author='XtraBackup', time=False)
 
             return_code = command.wait()
 
@@ -104,7 +104,7 @@ class CreateCommand:
             DownloadColumn(),
             transient=True
         ) as progress:
-            rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Start creating archive")
+            echo('Start creating archive', author='tar')
 
             try:
                 with progress.open(self._temp_backup_file_path, 'rb',) as backup:
@@ -124,7 +124,7 @@ class CreateCommand:
 
             progress.stop()
 
-            rprint(f"[blue]\\[tar][/blue] [{now('%Y-%m-%d %H:%M:%S')}] Archive created")
+            echo('Archive created', author='tar')
 
         self._archive_path = backup_archive_path
 
@@ -132,7 +132,7 @@ class CreateCommand:
         """ Upload tarball to SFTP backups storage """
 
         with Sftp(self._config.sftp) as sftp:
-            rprint('[blue][SFTP][/blue] Connected to SFTP backups storage.')
+            echo('Connected to SFTP backups storage.', author='SFTP')
 
             try:
                 remote_path = PurePath(self._config.sftp.path, now('%Y'), now('%m'), self._archive_path.name)
@@ -140,4 +140,4 @@ class CreateCommand:
             except IOError as e:
                 raise RuntimeError(f"Failed to upload the backup to SFTP backups storage: {e}")
 
-            rprint('[blue][SFTP][/blue] [green3]Dump successfully uploaded to SFTP backups storage!')
+            echo('Dump successfully uploaded to SFTP backups storage!', style='green3', author='SFTP')

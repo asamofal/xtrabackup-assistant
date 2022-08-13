@@ -9,7 +9,7 @@ from paramiko.ssh_exception import SSHException
 from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
 from configs import SftpConfig
-from utils import rprint
+from utils import echo
 
 
 class Sftp:
@@ -51,7 +51,7 @@ class Sftp:
             else:
                 self.sftp_client.get(str(remote_path), str(local_path))
         except (EOFError, SSHException, SFTPError, KeyboardInterrupt) as e:
-            rprint('[blue][SFTP][/blue] [italic]Error or terminate signal received. Cleaning up....')
+            echo('Error or terminate signal received. Cleaning up....', style='italic', author='SFTP')
 
             self.close()
 
@@ -90,7 +90,7 @@ class Sftp:
             else:
                 self.sftp_client.put(str(local_path), str(remote_path))
         except (EOFError, SSHException, KeyboardInterrupt) as e:
-            rprint('[blue][SFTP][/blue] [italic]Error or terminate signal received. Cleaning up....')
+            echo('Error or terminate signal received. Cleaning up....', style='italic', author='SFTP')
 
             self.close()
 

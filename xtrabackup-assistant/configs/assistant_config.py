@@ -5,7 +5,7 @@ from rich.text import Text
 from configs import XtrabackupConfig, SftpConfig, SlackConfig
 from constants import CONFIG_PATH, ALT_CONFIG_PATH
 from exceptions import ConfigError
-from utils import rprint
+from utils import echo_warning, echo
 
 
 class Config:
@@ -60,13 +60,11 @@ class Config:
         # check for unknown top lvl nodes
         unknown_nodes = [node for node in self._raw_config.keys() if node not in self.CONFIG_STRUCTURE.keys()]
         if len(unknown_nodes) > 0:
-            message = Text.assemble(
-                ('[Config] ', 'yellow3'),
+            echo_warning(Text.assemble(
                 ('Unknown config nodes: ', 'yellow3'),
-                (f"{', '.join(unknown_nodes)}. ", 'red'),
-                ('Skipped.', 'yellow3')
-            )
-            rprint(message)
+                (f"{', '.join(unknown_nodes)}", 'red bold'),
+                ('. Skipped.', 'yellow3')
+            ), author='Config')
 
         # check for required top lvl nodes
         required_nodes = [key for key, value in self.CONFIG_STRUCTURE.items() if value['optional'] is False]
@@ -76,7 +74,11 @@ class Config:
 
         # check for existing node fields
         for node_name, node_fields in self._raw_config.items():
-            required_node_fields = self.CONFIG_STRUCTURE[node_name]['required_fields']
+            try:
+                required_node_fields = self.CONFIG_STRUCTURE[node_name]['required_fields']
+            except KeyError:
+                continue
+
             missing_node_required_fields = [
                 f"{node_name}.{field}" for field in required_node_fields if field not in node_fields
             ]
@@ -86,4 +88,4 @@ class Config:
 
     @staticmethod
     def print_ready_message():
-        rprint(f"[blue]\\[Config][/blue] [green3]Config is ready.[/green3]")
+        echo(text='Config is ready.', style='green3', author='Config', time=False)

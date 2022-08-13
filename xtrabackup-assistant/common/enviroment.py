@@ -3,7 +3,7 @@ import subprocess
 
 from rich.text import Text
 
-from utils import rprint
+from utils import echo
 
 
 class Environment:
@@ -12,13 +12,15 @@ class Environment:
         self.xtrabackup_version = self._get_xtrabackup_version()
 
     def print_versions(self):
-        message = Text.assemble(
-            ('[Environment] ', 'blue'),
-            (f"Percona MySQL Server {self.mysql_version}", 'green3'),
-            (' | ', 'default'),
-            (f"Percona XtraBackup {self.xtrabackup_version}", 'green3')
+        echo(
+            Text.assemble(
+                (f"Percona MySQL Server {self.mysql_version}", 'green3'),
+                (' | ', 'default'),
+                (f"Percona XtraBackup {self.xtrabackup_version}", 'green3')
+            ),
+            author='Environment',
+            time=False
         )
-        rprint(message)
 
     @staticmethod
     def _get_mysql_server_version() -> str:

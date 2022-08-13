@@ -8,7 +8,7 @@ from common import Environment
 from configs import Config
 from constants import TEMP_DIR_PATH
 from exceptions import ConfigError
-from utils import rprint, clear_dir
+from utils import clear_dir, echo, echo_error
 
 NAME = 'Percona XtraBackup Assistant'
 VERSION = '1.0.0'
@@ -29,7 +29,7 @@ def main(command: Command):
 
 if __name__ == '__main__':
     if sys.version_info < MIN_PYTHON_VERSION:
-        rprint("[red]Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
+        echo_error("Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
         sys.exit(1)
 
     # register arguments for CLI
@@ -51,13 +51,13 @@ if __name__ == '__main__':
     try:
         main(received_command)
     except ConfigError as error:
-        rprint(f"[bright_red][Config] {error}")
+        echo_error(error, 'Config')
         sys.exit(1)
     except RuntimeError as error:
-        rprint(f"[bright_red][Error] {error}")
+        echo_error(error)
         sys.exit(1)
     except KeyboardInterrupt:
-        print('\rTerminating...')
+        echo('\rTerminating...', author=None, time=False)
         sys.exit()
     finally:
         clear_dir(TEMP_DIR_PATH)
