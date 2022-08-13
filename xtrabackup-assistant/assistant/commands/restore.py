@@ -231,7 +231,7 @@ class RestoreCommand:
             if command.returncode != 0:
                 raise RuntimeError('Failed to prepare backup files')
 
-        echo('mysql files are ready', 'xtrabackup')
+        echo('mysql files prepared', 'xtrabackup')
 
 
 def print_progress_decompressing_qp_files():
