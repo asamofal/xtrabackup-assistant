@@ -30,8 +30,8 @@ class CreateCommand:
         echo(
             Text.assemble(
                 ('Backup successfully created: ', 'green3'),
-                (f"{str(self._archive_path)} ", 'italic'),
-                (f"({naturalsize(self._archive_path.stat().st_size)})", 'italic')
+                (f"{str(self._archive_path)} ", 'default italic'),
+                (f"({naturalsize(self._archive_path.stat().st_size)})", 'default italic')
             ),
             time=False
         )
