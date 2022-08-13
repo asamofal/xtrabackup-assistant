@@ -61,9 +61,9 @@ class Config:
         unknown_nodes = [node for node in self._raw_config.keys() if node not in self.CONFIG_STRUCTURE.keys()]
         if len(unknown_nodes) > 0:
             echo_warning(Text.assemble(
-                ('Unknown config nodes: ', 'yellow3'),
+                ('Unknown config nodes: ', 'dark_orange'),
                 (f"{', '.join(unknown_nodes)}", 'red bold'),
-                ('. Skipped.', 'yellow3')
+                ('. Skipped.', 'dark_orange')
             ), author='Config')
 
         # check for required top lvl nodes
