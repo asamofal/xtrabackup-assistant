@@ -65,6 +65,8 @@ class Config:
                 (f"{', '.join(unknown_nodes)}", 'red bold'),
                 ('. Skipped.', 'dark_orange')
             ), author='Config')
+            # remove unknown nodes from the config
+            self._raw_config = dict((k, v) for k, v in self._raw_config.items() if k not in unknown_nodes)
 
         # check for required top lvl nodes
         required_nodes = [key for key, value in self.CONFIG_STRUCTURE.items() if value['optional'] is False]
@@ -74,16 +76,12 @@ class Config:
 
         # check for existing node fields
         for node_name, node_fields in self._raw_config.items():
-            try:
-                required_node_fields = self.CONFIG_STRUCTURE[node_name]['required_fields']
-            except KeyError:
-                continue
-
-            missing_node_required_fields = [
+            required_node_fields = self.CONFIG_STRUCTURE[node_name]['required_fields']
+            node_missing_required_fields = [
                 f"{node_name}.{field}" for field in required_node_fields if field not in node_fields
             ]
-            if len(missing_node_required_fields) > 0:
-                message = f"Missing required config fields: [default]{', '.join(missing_node_required_fields)}"
+            if len(node_missing_required_fields) > 0:
+                message = f"Missing required config fields: [default]{', '.join(node_missing_required_fields)}"
                 raise ConfigError(message)
 
     @staticmethod
