@@ -61,9 +61,8 @@ class Config:
         unknown_nodes = [node for node in self._raw_config.keys() if node not in self.CONFIG_STRUCTURE.keys()]
         if len(unknown_nodes) > 0:
             echo_warning(Text.assemble(
-                ('Unknown config nodes: ', 'dark_orange'),
+                ('Skipped unknown config nodes: ', 'dark_orange'),
                 (f"{', '.join(unknown_nodes)}", 'red bold'),
-                ('. Skipped.', 'dark_orange')
             ), author='Config')
             # remove unknown nodes from the config
             self._raw_config = dict((k, v) for k, v in self._raw_config.items() if k not in unknown_nodes)
