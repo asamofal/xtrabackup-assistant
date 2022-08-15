@@ -15,10 +15,10 @@ class Cli:
         subparsers = self._parser.add_subparsers(title='Available commands', required=True, dest='command')
         create_subparser = subparsers.add_parser(str(Command.CREATE), help='create database dump')
         create_subparser.add_argument(
-            '--no-upload',
+            '--upload',
             action='store_true',
-            help="don't upload a dump to SFTP storage",
-            dest='no_upload'
+            help="upload a dump to SFTP storage",
+            dest='upload'
         )
         subparsers.add_parser(str(Command.RESTORE), help='restore database dump')
 

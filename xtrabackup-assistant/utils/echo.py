@@ -42,7 +42,7 @@ def echo_error(text: Union[str, Text, Panel, Exception], author: str = 'Error') 
     echo(message, author=None, time=False)
 
 
-def echo_warning(text: Union[str, Text, Panel, Exception], author: str = 'Error') -> None:
+def echo_warning(text: Union[str, Text, Panel, Exception], author: str = 'Warning') -> None:
     message = Text(f'[{author}] ', 'dark_orange')
     text = text if isinstance(text, Text) else Text.from_markup(str(text))
     message.append_text(text)

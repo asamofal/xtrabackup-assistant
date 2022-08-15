@@ -11,7 +11,7 @@ from rich.text import Text
 from common import Environment, XtrabackupMessage
 from configs import Config
 from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, ERROR_LOG_DIR_PATH
-from utils import now, Sftp, echo
+from utils import now, Sftp, echo, echo_warning
 
 
 class CreateCommand:
@@ -23,7 +23,7 @@ class CreateCommand:
         self._temp_log_path = None
         self._archive_path = None
 
-    def execute(self, is_upload: bool = True) -> None:
+    def execute(self, upload: bool = True) -> None:
         self._create_backup()
         self._create_archive()
 
@@ -36,15 +36,11 @@ class CreateCommand:
             time=False
         )
 
-        if is_upload:
+        if upload:
             if self._config.sftp is not None:
                 self._upload_to_sftp_storage()
             else:
-                echo(
-                    "'sftp' option is missing in the config. Upload is skipped. "
-                    "To avoid this warning use additional option: 'create --no-upload'",
-                    style='orange3'
-                )
+                echo_warning("'sftp' option is missing in the config. Upload is skipped.")
 
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
