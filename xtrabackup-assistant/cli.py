@@ -25,7 +25,7 @@ class Cli:
     def get_command(self) -> Command:
         args = self._parser.parse_args()
         command = Command(args.command)
-        if command is Command.CREATE and args.no_upload:
-            command = Command.CREATE_NO_UPLOAD
+        if command is Command.CREATE and args.upload:
+            command = Command.CREATE_UPLOAD
 
         return command
