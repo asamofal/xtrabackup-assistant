@@ -66,11 +66,10 @@ class RestoreCommand:
 
         echo(Panel.fit(
             Text.assemble(
-                ('The backup is ready to be imported to the MySQL server!\n', 'green3 bold'),
-                'The next time the container is started you will be asked to import the new data.\n',
-                'Please restart the container and be ready to confirm the data replacement ',
-                'before the MySQL server is started.\n\n',
-                ("If you care about the current data, don't forget to make a backup, otherwise it will be lost.",
+                ('The backup is ready to be imported!\n', 'green3 bold'),
+                'The next time the container is started backup files will be moved to MySQL data dir.\n',
+                'Please restart the container and follow the startup logs. \n\n',
+                ("If you care about the current data, make a backup before the next start, otherwise it will be lost.",
                  'italic'),
                 justify='center'
             ),
