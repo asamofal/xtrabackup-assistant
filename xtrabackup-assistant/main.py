@@ -40,7 +40,7 @@ if __name__ == '__main__':
     except ConfigError as error:
         echo_error(error, 'Config')
         sys.exit(1)
-    except (RuntimeError, AssistantException) as error:
+    except RuntimeError as error:
         echo_error(error)
         sys.exit(1)
     except KeyboardInterrupt:

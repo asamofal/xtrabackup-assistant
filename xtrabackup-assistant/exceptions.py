@@ -1,4 +1,4 @@
-class AssistantException(Exception):
+class AssistantException(RuntimeError):
     pass
 
 
