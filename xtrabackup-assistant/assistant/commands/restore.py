@@ -17,7 +17,8 @@ from rich.text import Text
 from common import Environment, BackupList, Backup
 from configs import Config
 from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, RESTORE_DIR_PATH
-from utils import now, Sftp, echo, clear_dir
+from exceptions import SftpError
+from utils import now, Sftp, echo, clear_dir, echo_warning
 
 
 class RestoreCommand:
@@ -88,7 +89,14 @@ class RestoreCommand:
             self.backup_list.extend(self._local_this_year_backups())
 
             if self._config.sftp is not None:
-                self.backup_list.extend(self._sftp_this_year_backups())
+                try:
+                    sftp_backups = self._sftp_this_year_backups()
+                    self.backup_list.extend(sftp_backups)
+                except SftpError as e:
+                    progress.stop()
+
+                    echo_warning(e, author='SFTP')
+                    echo_warning('Backups from SFTP storage not included to the list.', author='SFTP')
 
     @staticmethod
     def _local_this_year_backups() -> list:

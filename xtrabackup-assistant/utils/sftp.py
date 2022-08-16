@@ -9,10 +9,13 @@ from paramiko.ssh_exception import SSHException
 from rich.progress import Progress, TextColumn, BarColumn, SpinnerColumn, DownloadColumn, TransferSpeedColumn
 
 from configs import SftpConfig
+from exceptions import SftpError
 from utils import echo
 
 
 class Sftp:
+    CONNECTION_TIMEOUT = 7
+
     def __init__(self, config: SftpConfig):
         try:
             self._config = config
@@ -20,10 +23,15 @@ class Sftp:
             self.ssh_client = paramiko.SSHClient()
             self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            self.ssh_client.connect(hostname=config.host, username=config.user, password=config.password, timeout=10)
+            self.ssh_client.connect(
+                hostname=config.host,
+                username=config.user,
+                password=config.password,
+                timeout=self.CONNECTION_TIMEOUT
+            )
             self.sftp_client = self.ssh_client.open_sftp()
         except (SSHException, socket.error) as e:
-            raise RuntimeError(f"Failed to init the SFTP connection: {e}")
+            raise SftpError(f"Failed to init the SFTP connection: {e}")
 
     def download(self, remote_path: PurePath, local_path: Path, display_progress=True):
         if not local_path.parent.exists():

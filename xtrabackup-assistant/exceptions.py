@@ -4,3 +4,7 @@ class AssistantException(Exception):
 
 class ConfigError(AssistantException):
     pass
+
+
+class SftpError(AssistantException):
+    pass
