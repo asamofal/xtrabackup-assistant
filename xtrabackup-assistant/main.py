@@ -7,7 +7,7 @@ from cli import Cli
 from common import Environment
 from configs import Config
 from constants import TEMP_DIR_PATH
-from exceptions import ConfigError
+from exceptions import ConfigError, AssistantException
 from utils import clear_dir, echo, echo_error
 
 NAME = 'Percona XtraBackup Assistant'
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     except ConfigError as error:
         echo_error(error, 'Config')
         sys.exit(1)
-    except RuntimeError as error:
+    except (RuntimeError, AssistantException) as error:
         echo_error(error)
         sys.exit(1)
     except KeyboardInterrupt:
