@@ -1,4 +1,5 @@
 import slack_notifications as slack
+from rich.text import Text
 
 from configs import SlackConfig
 
@@ -12,7 +13,7 @@ class Slack:
     def notify(self, project: str, error: Exception):
         attachment = slack.Attachment(
             title='XtraBackup Assistant error!',
-            text=str(error),
+            text=str(Text.from_markup(str(error))),
             footer=project,
             color='red',
         )
