@@ -1,14 +1,15 @@
+import logging
 import os
 import shutil
 import subprocess
 import tarfile
 from pathlib import Path, PurePath
+from typing import Union
 
-from humanize import naturalsize
 from rich.progress import Progress, TextColumn, SpinnerColumn, BarColumn, TaskProgressColumn, DownloadColumn
 from rich.text import Text
 
-from common import Environment, XtrabackupMessage
+from common import Environment, XtrabackupMessage, Backup
 from configs import Config
 from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, ERROR_LOG_DIR_PATH
 from utils import now, Sftp, echo, echo_warning
@@ -21,26 +22,28 @@ class CreateCommand:
 
         self._temp_backup_file_path = None
         self._temp_log_path = None
-        self._archive_path = None
+        self._backup: Union[Backup, None] = None
 
     def execute(self, upload: bool = True) -> None:
         self._create_backup()
         self._create_archive()
 
-        echo(
-            Text.assemble(
-                ('Backup successfully created: ', 'green3'),
-                (f"{str(self._archive_path)} ", 'default italic'),
-                (f"({naturalsize(self._archive_path.stat().st_size)})", 'default italic')
-            ),
-            time=False
+        success_msg = Text.assemble(
+            ('Backup successfully created: ', 'green3'),
+            (f"{self._backup.filename} ", 'default italic'),
+            (f"({self._backup.size})", 'default italic')
         )
+        echo(success_msg, time=False)
 
         if upload:
             if self._config.sftp is not None:
                 self._upload_to_sftp_storage()
+                echo('Dump successfully uploaded to SFTP backups storage!', style='green3', author='SFTP')
+                logging.info(Text.from_markup(str(success_msg.append('. Uploaded to SFTP storage.'))))
             else:
                 echo_warning("'sftp' option is missing in the config. Upload is skipped.")
+        else:
+            logging.info(Text.from_markup(str(success_msg)))
 
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """
@@ -122,7 +125,7 @@ class CreateCommand:
 
             echo('Archive created', author='tar')
 
-        self._archive_path = backup_archive_path
+        self._backup = Backup(source='local', path=backup_archive_path, size=backup_archive_path.stat().st_size)
 
     def _upload_to_sftp_storage(self) -> None:
         """ Upload tarball to SFTP backups storage """
@@ -131,9 +134,7 @@ class CreateCommand:
             echo('Connected to SFTP backups storage.', author='SFTP')
 
             try:
-                remote_path = PurePath(self._config.sftp.path, now('%Y'), now('%m'), self._archive_path.name)
-                sftp.upload(self._archive_path, remote_path)
+                remote_path = PurePath(self._config.sftp.path, now('%Y'), now('%m'), self._backup.filename)
+                sftp.upload(Path(self._backup.path), remote_path)
             except IOError as e:
                 raise RuntimeError(f"Failed to upload the backup to SFTP backups storage: {e}")
-
-            echo('Dump successfully uploaded to SFTP backups storage!', style='green3', author='SFTP')
