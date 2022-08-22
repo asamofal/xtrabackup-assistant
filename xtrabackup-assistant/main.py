@@ -5,7 +5,6 @@ import sys
 
 from assistant import Assistant, Command
 from cli import Cli
-from common import Environment
 from configs import Config
 from constants import TEMP_DIR_PATH, PRIMARY_LOG_PATH
 from exceptions import ConfigError
@@ -21,10 +20,7 @@ def main(command: Command):
     config = Config()
     config.print_ready_message()
 
-    env = Environment()
-    env.print_versions()
-
-    assistant = Assistant(env, config)
+    assistant = Assistant(config)
     assistant.execute(command)
 
 

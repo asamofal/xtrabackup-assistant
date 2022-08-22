@@ -38,7 +38,10 @@ class RestoreCommand:
             return None
 
         # ask choice a backup
-        self.backup_list.print()
+        self.backup_list.print(
+            title=f'Available backups (supported by Percona XtraBackup {self._env.xtrabackup_version})'
+        )
+
         target_backup_no = IntPrompt.ask(
             prompt=Text('Please enter no of the target backup', 'blue'),
             choices=self.backup_list.available_numbers,

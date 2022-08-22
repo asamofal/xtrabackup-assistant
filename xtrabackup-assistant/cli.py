@@ -12,6 +12,7 @@ class Cli:
 
     def register_arguments(self):
         self._parser.add_argument('--version', action='version', version=f"{self._parser} v{self._version}")
+
         subparsers = self._parser.add_subparsers(title='Available commands', required=True, dest='command')
         create_subparser = subparsers.add_parser(str(Command.CREATE), help='create database dump')
         create_subparser.add_argument(
@@ -20,7 +21,9 @@ class Cli:
             help="upload a dump to SFTP storage",
             dest='upload'
         )
+
         subparsers.add_parser(str(Command.RESTORE), help='restore database dump')
+        subparsers.add_parser(str(Command.ROTATE), help='rotate backups (remove old)')
 
     def get_command(self) -> Command:
         args = self._parser.parse_args()

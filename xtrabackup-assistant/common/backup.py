@@ -12,7 +12,11 @@ class Backup:
 
     @property
     def date(self) -> str:
-        return datetime.strptime(self.filename.split('_')[0], '%Y-%m-%d-%H-%M').strftime('%Y-%m-%d %H:%M')
+        return self.datetime.strftime('%Y-%m-%d %H:%M')
+
+    @property
+    def datetime(self) -> datetime:
+        return datetime.strptime(self.filename.split('_')[0], '%Y-%m-%d-%H-%M')
 
     @property
     def filename(self) -> str:

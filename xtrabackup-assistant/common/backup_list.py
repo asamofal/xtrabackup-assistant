@@ -1,15 +1,18 @@
 from collections import UserList
+from datetime import datetime
+from typing import Union
 
-from packaging import version
+from packaging.version import Version
 from rich.table import Table
 
-from .backup import Backup
 from utils import echo
+from .backup import Backup
+import operator
 
 
 class BackupList(UserList):
-    def __init__(self, xtrabackup_version: str):
-        super().__init__()
+    def __init__(self, init_list: list = None, xtrabackup_version: Union[str, None] = None):
+        super().__init__(init_list)
 
         self._xtrabackup_version = xtrabackup_version
 
@@ -19,15 +22,17 @@ class BackupList(UserList):
 
         super().sort(key=lambda b: b.date, reverse=True)
 
-    def extend(self, backups: list) -> None:
+    def extend(self, backups: Union[list, 'BackupList']) -> None:
         for backup in backups:
             self.append(backup)
 
     def _is_compatible(self, backup: Backup) -> bool:
-        return version.parse(backup.mysql_version) <= version.parse(self._xtrabackup_version)
+        if self._xtrabackup_version is None:
+            return True
+        else:
+            return Version(backup.mysql_version) <= Version(self._xtrabackup_version)
 
-    def print(self) -> None:
-        title = f"Available backups (supported by Percona XtraBackup {self._xtrabackup_version})"
+    def print(self, title: str = '') -> None:
         table = Table(title=title)
 
         table.add_column('No')
