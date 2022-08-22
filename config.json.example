@@ -14,5 +14,9 @@
   "slack": {
     "token": "",
     "channel": ""
+  },
+  "rotation": {
+    "max_store_time_years": 2,
+    "keep_for_last_days": 14
   }
 }

@@ -2,7 +2,7 @@ import json
 
 from rich.text import Text
 
-from configs import XtrabackupConfig, SftpConfig, SlackConfig
+from configs import XtrabackupConfig, SftpConfig, SlackConfig, RotationConfig
 from constants import CONFIG_PATH, ALT_CONFIG_PATH
 from exceptions import ConfigError
 from utils import echo_warning, echo
@@ -25,6 +25,10 @@ class Config:
         'slack': {
             'optional': True,
             'required_fields': {'token', 'channel'}
+        },
+        'rotation': {
+            'optional': True,
+            'required_fields': {'max_store_time_years', 'keep_for_last_days'}
         }
     }
 
@@ -32,6 +36,7 @@ class Config:
     xtrabackup: XtrabackupConfig = None
     sftp: SftpConfig = None
     slack: SlackConfig = None
+    rotation: RotationConfig = None
 
     _raw_config: dict = None
 
@@ -55,6 +60,8 @@ class Config:
             self.sftp = SftpConfig(**self._raw_config['sftp'])
         if 'slack' in self._raw_config:
             self.slack = SlackConfig(**self._raw_config['slack'])
+        if 'rotation' in self._raw_config:
+            self.rotation = RotationConfig(**self._raw_config['rotation'])
 
     def validate_config(self):
         # check for unknown top lvl nodes
