@@ -26,7 +26,7 @@ class RestoreCommand:
         self._env = env
         self._config = config
 
-        self.backup_list = BackupList(self._env.xtrabackup_version)
+        self.backup_list = BackupList(xtrabackup_version=self._env.xtrabackup_version)
         self.target_backup: Union[Backup, None] = None
 
     def execute(self) -> None:
