@@ -55,7 +55,7 @@ class RestoreCommand:
         )
 
         if self.target_backup.source == 'sftp':
-            self._download_backup(self.target_backup)
+            self.target_backup = self._download_backup(self.target_backup)
 
         try:
             self._extract_xbstream_file_from_archive()
@@ -117,11 +117,14 @@ class RestoreCommand:
                 sftp.r_find_files(current_year_backups_path, re.compile('.tar$'))
             ))
 
-    def _download_backup(self, backup: Backup) -> None:
+    def _download_backup(self, backup: Backup) -> Backup:
         with Sftp(self._config.sftp) as sftp:
-            backup_year = datetime.strptime(backup.date, '%Y-%m-%d %H:%M').strftime('%Y')
-            backup_month = datetime.strptime(backup.date, '%Y-%m-%d %H:%M').strftime('%m')
-            sftp.download(backup.path, Path(BACKUPS_DIR_PATH, backup_year, backup_month, backup.path.name))
+            backup_year = backup.datetime.strftime('%Y')
+            backup_month = backup.datetime.strftime('%m')
+            local_path = Path(BACKUPS_DIR_PATH, backup_year, backup_month, backup.path.name)
+            sftp.download(backup.path, local_path)
+
+            return Backup(source='local', path=local_path, size=local_path.stat().st_size)
 
     def _extract_xbstream_file_from_archive(self) -> None:
         echo('Start extracting xbstream file from the archive', 'tar')
