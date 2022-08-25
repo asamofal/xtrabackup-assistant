@@ -61,24 +61,23 @@ class RestoreCommand:
             self._extract_qp_files_from_xbstream_file()
             self._decompress_qp_files()
             self._prepare_mysql_files()
-        except (RuntimeError, KeyboardInterrupt) as e:
+
+            echo(Panel.fit(
+                Text.assemble(
+                    ('The backup is ready to be imported!\n', 'green3 bold'),
+                    'The next time the container is started backup files will be moved to MySQL data dir.\n',
+                    'Please restart the container and follow the startup logs. \n\n',
+                    ("If you care about the current data, make a backup before the next start, "
+                     "otherwise it will be lost.", 'italic'),
+                    justify='center'
+                ),
+                title='SUCCESS',
+                border_style='green3'
+            ))
+        except (RuntimeError, KeyboardInterrupt):
             clear_dir(RESTORE_DIR_PATH)
 
-            if isinstance(e, KeyboardInterrupt):
-                raise
-
-        echo(Panel.fit(
-            Text.assemble(
-                ('The backup is ready to be imported!\n', 'green3 bold'),
-                'The next time the container is started backup files will be moved to MySQL data dir.\n',
-                'Please restart the container and follow the startup logs. \n\n',
-                ("If you care about the current data, make a backup before the next start, otherwise it will be lost.",
-                 'italic'),
-                justify='center'
-            ),
-            title='SUCCESS',
-            border_style='green3'
-        ))
+            raise
 
     def _set_backup_list(self):
         with Progress(
