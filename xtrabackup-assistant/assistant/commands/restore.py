@@ -183,7 +183,7 @@ class RestoreCommand:
                         stderr=subprocess.PIPE
                     )
                     if command.returncode != 0:
-                        raise RuntimeError('Failed to extract files from xbstream')
+                        raise RuntimeError(f'Failed to extract files from xbstream: {command.stdout}')
             except FileNotFoundError:
                 raise RuntimeError(f'Failed to extract from xbstream: file not found {xbstream_file_path}')
 
