@@ -1,5 +1,4 @@
 from collections import UserList
-from datetime import datetime
 from typing import Union
 
 from packaging.version import Version
@@ -7,7 +6,6 @@ from rich.table import Table
 
 from utils import echo
 from .backup import Backup
-import operator
 
 
 class BackupList(UserList):
