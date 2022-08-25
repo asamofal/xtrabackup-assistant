@@ -3,7 +3,6 @@ import shutil
 import subprocess
 import tarfile
 import threading
-from datetime import datetime
 from pathlib import Path, PurePath
 from time import sleep
 from typing import Union
@@ -118,13 +117,14 @@ class RestoreCommand:
             ))
 
     def _download_backup(self, backup: Backup) -> Backup:
+        backup_year = backup.datetime.strftime('%Y')
+        backup_month = backup.datetime.strftime('%m')
+        local_path = Path(BACKUPS_DIR_PATH, backup_year, backup_month, backup.path.name)
+
         with Sftp(self._config.sftp) as sftp:
-            backup_year = backup.datetime.strftime('%Y')
-            backup_month = backup.datetime.strftime('%m')
-            local_path = Path(BACKUPS_DIR_PATH, backup_year, backup_month, backup.path.name)
             sftp.download(backup.path, local_path)
 
-            return Backup(source='local', path=local_path, size=local_path.stat().st_size)
+        return Backup(source='local', path=local_path, size=local_path.stat().st_size)
 
     def _extract_xbstream_file_from_archive(self) -> None:
         echo('Start extracting xbstream file from the archive', 'tar')
