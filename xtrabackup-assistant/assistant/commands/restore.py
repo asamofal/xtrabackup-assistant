@@ -179,11 +179,11 @@ class RestoreCommand:
                     command = subprocess.run(
                         ['xbstream', *command_options],
                         stdin=xbstream_file,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
+                        capture_output=True
                     )
                     if command.returncode != 0:
-                        raise RuntimeError(f'Failed to extract files from xbstream: {command.stdout}')
+                        error = command.stdout.decode('utf-8').rstrip()
+                        raise RuntimeError(f'Failed to extract files from xbstream: {error}')
             except FileNotFoundError:
                 raise RuntimeError(f'Failed to extract from xbstream: file not found {xbstream_file_path}')
 
@@ -205,17 +205,14 @@ class RestoreCommand:
             '--decompress-threads=5',
             '--remove-original'
         )
-        command = subprocess.run(
-            ['xtrabackup', *command_options],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+        command = subprocess.run(['xtrabackup', *command_options], capture_output=True)
 
         # wait until progress disappear
         progress_thread.join()
 
         if command.returncode != 0:
-            raise RuntimeError('Failed to decompress qpress files')
+            error = command.stderr.decode('utf-8').rstrip()
+            raise RuntimeError(f'Failed to decompress qpress files: {error}')
 
         echo('qpress files decompressed', 'xtrabackup')
 
@@ -237,11 +234,11 @@ class RestoreCommand:
             )
             command = subprocess.run(
                 ['xtrabackup', *command_options],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                capture_output=True
             )
             if command.returncode != 0:
-                raise RuntimeError('Failed to prepare backup files')
+                error = command.stderr.decode('utf-8').rstrip()
+                raise RuntimeError(f'Failed to prepare backup files: {error}')
 
         echo('mysql files prepared', 'xtrabackup')
 
