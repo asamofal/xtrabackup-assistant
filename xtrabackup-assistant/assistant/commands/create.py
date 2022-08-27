@@ -1,4 +1,3 @@
-import logging
 import os
 import shutil
 import subprocess
@@ -12,7 +11,7 @@ from rich.text import Text
 from common import Environment, XtrabackupMessage, Backup
 from configs import Config
 from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, ERROR_LOG_DIR_PATH
-from utils import now, Sftp, echo, echo_warning
+from utils import now, Sftp, echo, echo_warning, logger
 
 
 class CreateCommand:
@@ -39,11 +38,11 @@ class CreateCommand:
             if self._config.sftp is not None:
                 self._upload_to_sftp_storage()
                 echo('Dump successfully uploaded to SFTP backups storage!', style='green3', author='SFTP')
-                logging.info(Text.from_markup(str(success_msg.append('. Uploaded to SFTP storage.'))))
+                logger.info(Text.from_markup(str(success_msg.append('. Uploaded to SFTP storage.'))))
             else:
                 echo_warning("'sftp' option is missing in the config. Upload is skipped.")
         else:
-            logging.info(Text.from_markup(str(success_msg)))
+            logger.info(Text.from_markup(str(success_msg)))
 
     def _create_backup(self) -> None:
         """ Create compressed dump (xbstream) with log file in temp dir """

@@ -17,7 +17,7 @@ from common import Environment, BackupList, Backup
 from configs import Config
 from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, RESTORE_DIR_PATH
 from exceptions import SftpError
-from utils import now, Sftp, echo, clear_dir, echo_warning
+from utils import now, Sftp, echo, clear_dir, echo_warning, logger
 
 
 class RestoreCommand:

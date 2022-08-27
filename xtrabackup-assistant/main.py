@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
-import logging
 import sys
 
 from assistant import Assistant, Command
 from cli import Cli
 from configs import Config
-from constants import TEMP_DIR_PATH, PRIMARY_LOG_PATH
+from constants import TEMP_DIR_PATH
 from exceptions import ConfigError
 from utils import clear_dir, echo, echo_error
 
@@ -28,15 +27,6 @@ if __name__ == '__main__':
     if sys.version_info < MIN_PYTHON_VERSION:
         echo_error("Python %s.%s or newer is required." % MIN_PYTHON_VERSION)
         sys.exit(1)
-
-    # set up general logger
-    logging.basicConfig(
-        filename=PRIMARY_LOG_PATH,
-        filemode='a',
-        format='[%(asctime)s] [%(levelname)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-        level=logging.INFO
-    )
 
     cli = Cli(NAME, VERSION)
     cli.register_arguments()
