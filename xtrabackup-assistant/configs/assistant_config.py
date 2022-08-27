@@ -3,7 +3,7 @@ import json
 from rich.text import Text
 
 from configs import XtrabackupConfig, SftpConfig, SlackConfig, RotationConfig
-from constants import CONFIG_PATH, ALT_CONFIG_PATH
+from constants import CONFIG_PATH
 from exceptions import ConfigError
 from utils import echo_warning, echo
 
@@ -41,16 +41,14 @@ class Config:
     _raw_config: dict = None
 
     def __init__(self):
-        config_path = CONFIG_PATH if CONFIG_PATH.exists() else ALT_CONFIG_PATH
-
         try:
-            with open(config_path, 'r') as config_file:
+            with open(CONFIG_PATH, 'r') as config_file:
                 try:
                     self._raw_config = json.load(config_file)
                 except json.decoder.JSONDecodeError:
                     raise ConfigError('Failed to parse the config. Is it valid JSON?')
         except FileNotFoundError:
-            raise ConfigError(f"Config file is missing: [default]{CONFIG_PATH} or {ALT_CONFIG_PATH}")
+            raise ConfigError(f"Config file is missing: [default]{CONFIG_PATH}")
 
         self.validate_config()
 

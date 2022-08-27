@@ -10,7 +10,7 @@ from rich.text import Text
 
 from common import Environment, XtrabackupMessage, Backup
 from configs import Config
-from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, ERROR_LOG_DIR_PATH
+from constants import BACKUPS_DIR_PATH, TEMP_DIR_PATH, LOGS_DIR_PATH
 from utils import now, Sftp, echo, echo_warning, logger
 
 
@@ -74,7 +74,7 @@ class CreateCommand:
             return_code = command.wait()
 
         if return_code != 0:
-            error_log_path = Path(ERROR_LOG_DIR_PATH, f"{backup_timestamp}-error.log")
+            error_log_path = Path(LOGS_DIR_PATH, f"{backup_timestamp}-error.log")
             shutil.move(temp_log_path, error_log_path)
 
             raise RuntimeError(f"Failed to create a backup! Error log: [default]{str(error_log_path)}")
