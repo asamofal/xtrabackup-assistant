@@ -10,3 +10,4 @@ RESTORE_DIR_PATH: Path = Path(ROOT_DIR, 'data/restore')
 
 LOGS_DIR_PATH: Path = Path(ROOT_DIR, 'logs')
 PRIMARY_LOG_PATH: Path = Path(LOGS_DIR_PATH, 'xtrabackup-assistant.log')
+ROTATION_LOG_PATH: Path = Path(LOGS_DIR_PATH, 'rotation.log')
