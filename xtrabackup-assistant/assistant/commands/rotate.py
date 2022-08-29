@@ -24,7 +24,7 @@ class RotateCommand:
 
     def _rotate_local_backups(self) -> None:
         echo('Start local storage rotation')
-        rotation_logger.info('START LOCAL STORAGE ROTATION')
+        rotation_logger.info('Start LOCAL storage rotation')
 
         local_backups = [
             Backup(source='local', path=path, size=path.stat().st_size) for path in BACKUPS_DIR_PATH.rglob('*.tar')
@@ -37,26 +37,35 @@ class RotateCommand:
 
         for backup in backups_to_delete:
             backup.path.unlink()
-            rotation_logger.info(f'Backup deleted: {backup.filename}')
+
+            msg = f'Local backup deleted: {backup.filename}'
+            echo(msg)
+            rotation_logger.info(msg)
 
             # delete month dir if empty
             month_dir_path = backup.path.parent
             if not any(month_dir_path.iterdir()):
                 month_dir_path.rmdir()
-                rotation_logger.info(f'Empty month dir deleted: {month_dir_path}')
+
+                msg = f'Local empty month dir deleted: {month_dir_path}'
+                echo(msg)
+                rotation_logger.info(msg)
 
             # delete year dir if empty
             year_dir_path = month_dir_path.parent
             if not any(year_dir_path.iterdir()):
                 year_dir_path.rmdir()
-                rotation_logger.info(f'Empty year dir deleted: {year_dir_path}')
+
+                msg = f'Local empty year dir deleted: {year_dir_path}'
+                echo(msg)
+                rotation_logger.info(msg)
 
         echo('End local storage rotation')
-        rotation_logger.info('END LOCAL STORAGE ROTATION')
+        rotation_logger.info('End LOCAL storage rotation\n')
 
     def _rotate_sftp_backups(self) -> None:
         echo('Start sftp storage rotation')
-        rotation_logger.info('START SFTP STORAGE ROTATION')
+        rotation_logger.info('Start SFTP storage rotation')
 
         with Sftp(self._config.sftp) as sftp:
             backups_to_delete = []
@@ -107,21 +116,29 @@ class RotateCommand:
                         backups_to_delete.extend(redundant_month_backups)
 
             for backup in backups_to_delete:
-                # TODO: error handler
-                sftp.delete(backup.path)
-                rotation_logger.info(f'SFTP backup deleted: {backup.filename}')
+                try:
+                    sftp.delete(backup.path)
+                    msg = f'SFTP backup deleted: {backup.filename}'
+                    echo(msg)
+                    rotation_logger.info(msg)
 
-                # delete month dir if empty
-                month_dir_path = backup.path.parent
-                if not any(sftp.sftp_client.listdir(str(month_dir_path))):
-                    sftp.delete(month_dir_path)
-                    rotation_logger.info(f'SFTP empty month dir deleted: {month_dir_path}')
+                    # delete month dir if empty
+                    month_dir_path = backup.path.parent
+                    if not any(sftp.sftp_client.listdir(str(month_dir_path))):
+                        sftp.delete(month_dir_path)
+                        msg = f'SFTP empty month dir deleted: {month_dir_path}'
+                        echo(msg)
+                        rotation_logger.info(msg)
 
-                # delete year dir if empty
-                year_dir_path = month_dir_path.parent
-                if not any(sftp.sftp_client.listdir(str(year_dir_path))):
-                    sftp.delete(year_dir_path)
-                    rotation_logger.info(f'SFTP empty year dir deleted: {year_dir_path}')
+                    # delete year dir if empty
+                    year_dir_path = month_dir_path.parent
+                    if not any(sftp.sftp_client.listdir(str(year_dir_path))):
+                        sftp.delete(year_dir_path)
+                        msg = f'SFTP empty year dir deleted: {year_dir_path}'
+                        echo(msg)
+                        rotation_logger.info(msg)
+                except IOError as e:
+                    raise RuntimeError(f'Failed to delete SFTP entity: {e}')
 
         echo('End sftp storage rotation')
-        rotation_logger.info('END SFTP STORAGE ROTATION\n')
+        rotation_logger.info('End SFTP storage rotation\n')
