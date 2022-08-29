@@ -11,7 +11,7 @@ class Cli:
         self._parser = ArgumentParser(description=f"{self._name} v{self._version}")
 
     def register_arguments(self):
-        self._parser.add_argument('--version', action='version', version=f"{self._parser} v{self._version}")
+        self._parser.add_argument('--version', action='version', version=f"{self._name} v{self._version}")
 
         subparsers = self._parser.add_subparsers(title='Available commands', required=True, dest='command')
         create_subparser = subparsers.add_parser(str(Command.CREATE), help='create database dump')
