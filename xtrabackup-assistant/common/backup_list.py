@@ -10,9 +10,12 @@ from .backup import Backup
 
 class BackupList(UserList):
     def __init__(self, init_list: list = None, xtrabackup_version: Union[str, None] = None):
-        super().__init__(init_list)
+        super().__init__()
 
         self._xtrabackup_version = xtrabackup_version
+
+        if init_list is not None:
+            self.extend(init_list)
 
     def append(self, backup: Backup) -> None:
         if backup not in self and self._is_compatible(backup):
