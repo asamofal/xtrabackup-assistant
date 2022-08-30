@@ -2,7 +2,7 @@
 Assistant for Percona XtraBackup - tool automates the process of create and restoring your backups.
 
 #### Key features
-- Simple use: only two commands `create` and `restore`
+- Simple use: only a few commands `create`, `restore`, `rotate`
 - Fully automated processes
 - Display progress bars where possible _(especially handy for large backups)_
 - Ability to work with remote storage _(via SFTP)_
