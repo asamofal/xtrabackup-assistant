@@ -117,7 +117,7 @@ class RotateCommand:
 
             for backup in backups_to_delete:
                 try:
-                    # sftp.delete(backup.path)
+                    sftp.delete(backup.path)
                     msg = f'SFTP backup deleted: {backup.filename}'
                     echo(msg)
                     rotation_logger.info(msg)
