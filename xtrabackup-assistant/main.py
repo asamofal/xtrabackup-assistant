@@ -10,7 +10,7 @@ from exceptions import ConfigError
 from utils import clear_dir, echo, echo_error
 
 NAME = 'Percona XtraBackup Assistant'
-VERSION = '1.0.3'
+VERSION = '1.0.4'
 AUTHOR = 'Anton Samofal'
 MIN_PYTHON_VERSION = (3, 9)
 

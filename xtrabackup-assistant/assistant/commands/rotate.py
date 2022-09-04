@@ -61,7 +61,7 @@ class RotateCommand:
                 rotation_logger.info(msg)
 
         echo('End local storage rotation')
-        rotation_logger.info('End LOCAL storage rotation\n')
+        rotation_logger.info('End LOCAL storage rotation')
 
     def _rotate_sftp_backups(self) -> None:
         echo('Start sftp storage rotation')
@@ -78,12 +78,18 @@ class RotateCommand:
             pinned_backups_datetime = datetime.now() - relativedelta(days=self._config.rotation.keep_for_last_days)
             backups = [backup for backup in backups if backup.datetime < pinned_backups_datetime]
 
+            # remove everything else in pinned month
+            pinned_month = pinned_backups_datetime.strftime('%m')
+            outdated_in_pinned_month = [
+                backup for backup in backups if backup.datetime.strftime('%m') == pinned_month
+            ]
+            backups_to_delete.extend(outdated_in_pinned_month)
+            backups = list(set(backups) - set(outdated_in_pinned_month))
+
             # check by max store time
             obsolescence_datetime = datetime.now() - relativedelta(years=self._config.rotation.max_store_time_years)
             outdated_backups = [backup for backup in backups if backup.datetime < obsolescence_datetime]
             backups_to_delete.extend(outdated_backups)
-
-            # remove outdated backups from the global list
             backups = list(set(backups) - set(outdated_backups))
 
             # group by year/month
@@ -91,12 +97,6 @@ class RotateCommand:
             for backup in backups:
                 backup_year = backup.datetime.strftime('%Y')
                 backup_month = backup.datetime.strftime('%m')
-
-                # skip months connected to "pinned" period
-                pinned_backups_year = pinned_backups_datetime.strftime('%Y')
-                pinned_backups_month = pinned_backups_datetime.strftime('%m')
-                if backup_year == pinned_backups_year and backup_month >= pinned_backups_month:
-                    continue
 
                 if backup_year not in grouped_backups:
                     grouped_backups[backup_year] = {}
@@ -117,7 +117,7 @@ class RotateCommand:
 
             for backup in backups_to_delete:
                 try:
-                    sftp.delete(backup.path)
+                    # sftp.delete(backup.path)
                     msg = f'SFTP backup deleted: {backup.filename}'
                     echo(msg)
                     rotation_logger.info(msg)
