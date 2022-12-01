@@ -75,7 +75,8 @@ class RotateCommand:
             backups = [Backup(source='sftp', path=file['path'], size=file['attr'].st_size) for file in backup_files]
 
             # keep backups newer than N days
-            pinned_backups_datetime = datetime.now() - relativedelta(days=self._config.rotation.keep_for_last_days)
+            current_day_start = datetime.strptime(datetime.now().strftime('%Y-%m-%d'), '%Y-%m-%d')
+            pinned_backups_datetime = current_day_start - relativedelta(days=self._config.rotation.keep_for_last_days)
             backups = [backup for backup in backups if backup.datetime < pinned_backups_datetime]
 
             # remove everything else in pinned month
@@ -87,7 +88,7 @@ class RotateCommand:
             backups = list(set(backups) - set(outdated_in_pinned_month))
 
             # check by max store time
-            obsolescence_datetime = datetime.now() - relativedelta(years=self._config.rotation.max_store_time_years)
+            obsolescence_datetime = current_day_start - relativedelta(years=self._config.rotation.max_store_time_years)
             outdated_backups = [backup for backup in backups if backup.datetime < obsolescence_datetime]
             backups_to_delete.extend(outdated_backups)
             backups = list(set(backups) - set(outdated_backups))
