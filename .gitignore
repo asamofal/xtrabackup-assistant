@@ -6,3 +6,5 @@
 !conf/config.json.example
 !data
 !logs
+
+__pycache__
