@@ -3,6 +3,7 @@
   "xtrabackup": {
     "user": "",
     "password": "",
+    "host": "",
     "parallel": 5
   },
   "sftp": {

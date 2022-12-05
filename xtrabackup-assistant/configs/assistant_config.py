@@ -16,7 +16,7 @@ class Config:
         },
         'xtrabackup': {
             'optional': False,
-            'required_fields': {'user', 'password'}
+            'required_fields': {'user', 'password', 'host'}
         },
         'sftp': {
             'optional': True,

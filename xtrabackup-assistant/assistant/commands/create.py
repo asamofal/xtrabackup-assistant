@@ -61,7 +61,7 @@ class CreateCommand:
                 '--compress-threads=5',
                 f"--user={self._config.xtrabackup.user}",
                 f"--password={self._config.xtrabackup.password}",
-                '--host=127.0.0.1',
+                f"--host={self._config.xtrabackup.host}",
                 f"--target-dir={TEMP_DIR_PATH}"
             )
             command = subprocess.Popen(['xtrabackup', *command_options], stdout=backup_file, stderr=subprocess.PIPE)

@@ -5,4 +5,5 @@ from dataclasses import dataclass
 class XtrabackupConfig:
     user: str
     password: str
+    host: str
     parallel: int = 10
