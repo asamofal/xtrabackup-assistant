@@ -29,7 +29,7 @@ Python 3.9 or newer is required.
   - `keep_for_last_days` - backups created for this N last days will be excluded from rotation
 
 #### Usage
-1. Create config
+1. Create config _(copy `conf/config.json.exmaple` to `conf/config.json`)_
 2. Run one of the available commands: `create` _(`--upload` available here)_, `restore`, `rotate`
 
 Example:
