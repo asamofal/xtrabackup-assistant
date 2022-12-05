@@ -15,6 +15,7 @@ Python 3.9 or newer is required.
 - `xtrabcakup` _(required)_:
   - `xtrabcakup.user` - the MySQL username used when connecting to the server _(required for creating a backup)_
   - `xtrabcakup.password` - the password to use when connecting to the database _(required for creating a backup)_
+  - `xtrabcakup.host` - the host to use when connecting to the database _(required for creating a backup)_
   - `xtrabcakup.parallel` - the number of threads to use to copy multiple data files concurrently when creating/restoring a backup
 - `sftp` _(optional)_ - if set can be used to work with remote SFTP storage _(upload backups, download during restore, rotate backups there)_
   - `host` - the hostname or IP of the SFTP server
