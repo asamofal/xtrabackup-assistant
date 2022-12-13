@@ -113,14 +113,18 @@ class CreateCommand:
                         tar.addfile(file_info, fileobj=backup)
                         # add log file
                         tar.add(self._temp_log_path, arcname=self._temp_log_path.name)
-            except KeyboardInterrupt:
+            except BaseException as e:
                 if os.path.exists(backup_archive_path):
                     os.remove(backup_archive_path)
                 if len(os.listdir(backup_archive_dir_path)) == 0:
                     os.rmdir(backup_archive_path.parent)
-                raise
 
-            progress.stop()
+                if e is KeyboardInterrupt:
+                    raise
+
+                raise RuntimeError(f'Failed to create an archive: {e}')
+            finally:
+                progress.stop()
 
             echo('Archive created', author='tar')
 
