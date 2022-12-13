@@ -28,7 +28,7 @@ class Config:
         },
         'rotation': {
             'optional': True,
-            'required_fields': {'max_store_time_years', 'keep_for_last_days'}
+            'required_fields': {'max_store_time_years', 'keep_for_last_days_local', 'keep_for_last_days_sftp'}
         }
     }
 

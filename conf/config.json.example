@@ -18,6 +18,7 @@
   },
   "rotation": {
     "max_store_time_years": 2,
-    "keep_for_last_days": 14
+    "keep_for_last_days_local": 7
+    "keep_for_last_days_sftp": 14
   }
 }

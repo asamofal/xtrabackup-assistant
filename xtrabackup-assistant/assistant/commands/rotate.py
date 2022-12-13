@@ -29,7 +29,7 @@ class RotateCommand:
         local_backups = [
             Backup(source='local', path=path, size=path.stat().st_size) for path in BACKUPS_DIR_PATH.rglob('*.tar')
         ]
-        pinned_backups_datetime = datetime.now() - relativedelta(days=self._config.rotation.keep_for_last_days)
+        pinned_backups_datetime = datetime.now() - relativedelta(days=self._config.rotation.keep_for_last_days_local)
 
         backups_to_delete = BackupList(
             [backup for backup in local_backups if backup.datetime < pinned_backups_datetime]
@@ -76,7 +76,8 @@ class RotateCommand:
 
             # keep backups newer than N days
             current_day_start = datetime.strptime(datetime.now().strftime('%Y-%m-%d'), '%Y-%m-%d')
-            pinned_backups_datetime = current_day_start - relativedelta(days=self._config.rotation.keep_for_last_days)
+            keep_for_last_days_sftp = self._config.rotation.keep_for_last_days_sftp
+            pinned_backups_datetime = current_day_start - relativedelta(days=keep_for_last_days_sftp)
             backups = [backup for backup in backups if backup.datetime < pinned_backups_datetime]
 
             # remove everything else in pinned month
