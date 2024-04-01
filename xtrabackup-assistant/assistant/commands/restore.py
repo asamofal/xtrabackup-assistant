@@ -54,7 +54,9 @@ class RestoreCommand:
         )
 
         if self.target_backup.source == 'sftp':
+            echo('Start downloading the backup', 'Assistant')
             self.target_backup = self._download_backup(self.target_backup)
+            echo('The backup downloaded', 'Assistant')
 
         try:
             self._extract_xbstream_file_from_archive()
