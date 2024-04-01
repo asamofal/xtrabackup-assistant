@@ -30,8 +30,16 @@ class BackupList(UserList):
     def _is_compatible(self, backup: Backup) -> bool:
         if self._xtrabackup_version is None:
             return True
-        else:
-            return Version(backup.mysql_version) <= Version(self._xtrabackup_version)
+
+        mysql_version = Version(backup.mysql_version)
+        xtrabackup_version = Version(self._xtrabackup_version)
+
+        # With the release of Percona XtraBackup 8.0.34-29,
+        # Percona XtraBackup allows backups on version 8.0.35 and higher
+        if xtrabackup_version >= Version('8.0.34-29') and (mysql_version.major == 8 and mysql_version.minor == 0):
+            return True
+
+        return mysql_version <= xtrabackup_version
 
     def print(self, title: str = '') -> None:
         table = Table(title=title)
